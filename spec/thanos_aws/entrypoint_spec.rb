@@ -59,6 +59,11 @@ describe 'thanos-aws entrypoint' do
           .to(match(/--log\.level=info/))
     end
 
+    it 'has no tracing configured' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--tracing\.config/))
+    end
+
     it 'runs with the thanos user' do
       expect(process('/opt/thanos/bin/thanos').user)
           .to(eq('thanos'))
@@ -97,6 +102,113 @@ describe 'thanos-aws entrypoint' do
     it 'logs at the provided level' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--log\.level=debug/))
+    end
+  end
+
+  describe 'with tracing configuration' do
+    def tracing_configuration
+      File.read('spec/fixtures/example-tracing-configuration.yml')
+    end
+
+    context 'when passed directly' do
+
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_TRACING_CONFIGURATION' => tracing_configuration
+            })
+
+        execute_docker_entrypoint(
+            arguments: ["sidecar"],
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'passes the provided tracing config' do
+        config_option=tracing_configuration
+            .gsub("\n", " ")
+            .gsub('"', '')
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--tracing\.config #{config_option}/))
+      end
+    end
+
+    context 'when passed an object path for a config file' do
+      before(:all) do
+        tracing_config_file_object_path = "#{s3_bucket_path}/tracing.yml"
+
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: tracing_config_file_object_path,
+            content: tracing_configuration)
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_TRACING_CONFIGURATION_FILE_OBJECT_PATH' =>
+                    tracing_config_file_object_path
+            })
+
+        execute_docker_entrypoint(
+            arguments: ["sidecar"],
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'fetches the specific tracing config file and passes its path' do
+        config_file_listing = command('ls /opt/thanos/conf').stdout
+
+        expect(config_file_listing).to(eq("tracing.yml\n"))
+
+        config_file_path = '/opt/thanos/conf/tracing.yml'
+        config_file_contents = command("cat #{config_file_path}").stdout
+
+        expect(config_file_contents).to(eq(tracing_configuration))
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--tracing\.config-file=#{Regexp.escape(config_file_path)}/))
+      end
+    end
+
+    context 'when passed a filesystem path for a config file' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_TRACING_CONFIGURATION_FILE_PATH' =>
+                    '/tracing-config.yml'
+            })
+
+        execute_command(
+            "echo \"#{tracing_configuration}\" > /tracing-config.yml")
+        execute_command(
+            "chown thanos:thanos /tracing-config.yml")
+
+        execute_docker_entrypoint(
+            arguments: ["sidecar"],
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided file path as the tracing config path' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--tracing\.config-file=\/tracing-config.yml/))
+      end
     end
   end
 

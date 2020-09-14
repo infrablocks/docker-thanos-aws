@@ -1,0 +1,6 @@
+type: "ELASTIC_APM"
+config:
+  service_name: "service"
+  service_version: "1"
+  service_environment: "dev"
+  sample_rate: 0.1
