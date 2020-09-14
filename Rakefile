@@ -93,7 +93,6 @@ namespace :image do
     t.copy_spec = [
         "src/thanos-aws/Dockerfile",
         "src/thanos-aws/start.sh",
-        "src/thanos-aws/scripts",
     ]
 
     t.repository_name = 'thanos-aws'

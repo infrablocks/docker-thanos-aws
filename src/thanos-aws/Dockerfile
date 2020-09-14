@@ -21,7 +21,6 @@ RUN cd /tmp \
     && mkdir -p /opt/thanos/bin \
     && mkdir -p /opt/thanos/conf \
     && mv /opt/thanos/thanos /opt/thanos/bin/thanos \
-    && mv /opt/thanos/thanos.yml /opt/thanos/conf/thanos.yml \
     && rm "thanos-${THANOS_VERSION}.linux-amd64.tar.gz" \
     && rm -rf "thanos-${THANOS_VERSION}.linux-amd64" \
     && cd /
