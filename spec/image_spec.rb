@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe 'image' do
+xdescribe 'image' do
   image = 'thanos-aws:latest'
   extra = {
       'Entrypoint' => '/bin/sh',

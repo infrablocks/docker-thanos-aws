@@ -16,4 +16,5 @@ git pull
 
 ./go version:release
 
-./go image:publish
+./go images:base:publish
+./go images:sidecar:publish

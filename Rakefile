@@ -84,24 +84,65 @@ namespace :pipeline do
   ]
 end
 
-namespace :image do
-  RakeDocker.define_image_tasks(
-      image_name: 'thanos-aws'
-  ) do |t|
-    t.work_directory = 'build/images'
+namespace :images do
+  namespace :base do
+    RakeDocker.define_image_tasks(
+        image_name: 'thanos-aws'
+    ) do |t|
+      t.work_directory = 'build/images'
 
-    t.copy_spec = [
-        "src/thanos-aws/Dockerfile",
-        "src/thanos-aws/start.sh",
-    ]
+      t.copy_spec = [
+          "src/thanos-aws/Dockerfile",
+          "src/thanos-aws/start.sh",
+      ]
 
-    t.repository_name = 'thanos-aws'
-    t.repository_url = 'infrablocks/thanos-aws'
+      t.repository_name = 'thanos-aws'
+      t.repository_url = 'infrablocks/thanos-aws'
 
-    t.credentials = YAML.load_file(
-        "config/secrets/dockerhub/credentials.yaml")
+      t.credentials = YAML.load_file(
+          "config/secrets/dockerhub/credentials.yaml")
 
-    t.tags = [latest_tag.to_s, 'latest']
+      t.tags = [latest_tag.to_s, 'latest']
+    end
+  end
+
+  namespace :sidecar do
+    RakeDocker.define_image_tasks(
+        image_name: 'thanos-sidecar-aws',
+        argument_names: [:base_image_version]
+    ) do |t, args|
+      args.with_defaults(base_image_version: latest_tag.to_s)
+
+      t.work_directory = 'build/images'
+
+      t.copy_spec = [
+          "src/thanos-sidecar-aws/Dockerfile",
+          "src/thanos-sidecar-aws/start.sh",
+      ]
+
+      t.repository_name = 'thanos-sidecar-aws'
+      t.repository_url = 'infrablocks/thanos-sidecar-aws'
+
+      t.credentials = YAML.load_file(
+          "config/secrets/dockerhub/credentials.yaml")
+
+      t.build_args = {
+          BASE_IMAGE_VERSION: args.base_image_version
+      }
+
+      t.tags = [latest_tag.to_s, 'latest']
+    end
+  end
+
+  desc "Build all images"
+  task :build do
+    [
+        'images:base',
+        'images:sidecar'
+    ].each do |t|
+      Rake::Task["#{t}:build"].invoke('latest')
+      Rake::Task["#{t}:tag"].invoke('latest')
+    end
   end
 end
 
@@ -144,7 +185,7 @@ end
 
 namespace :test do
   RSpec::Core::RakeTask.new(:integration => [
-      'image:build',
+      'images:build',
       'dependencies:test:provision'
   ]) do |t|
     t.rspec_opts = ["--format", "documentation"]

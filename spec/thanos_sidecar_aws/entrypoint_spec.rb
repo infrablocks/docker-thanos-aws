@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-xdescribe 'thanos-sidecar-aws entrypoint' do
+describe 'thanos-sidecar-aws entrypoint' do
   metadata_service_url = 'http://metadata:1338'
   s3_endpoint_url = 'http://s3:4566'
   s3_bucket_region = 'us-east-1'
@@ -15,7 +15,7 @@ xdescribe 'thanos-sidecar-aws entrypoint' do
       'AWS_S3_BUCKET_REGION' => s3_bucket_region,
       'AWS_S3_ENV_FILE_OBJECT_PATH' => s3_env_file_object_path
   }
-  image = 'thanos-aws:latest'
+  image = 'thanos-sidecar-aws:latest'
   extra = {
       'Entrypoint' => '/bin/sh',
       'HostConfig' => {
@@ -44,14 +44,96 @@ xdescribe 'thanos-sidecar-aws entrypoint' do
 
     after(:all, &:reset_docker_backend)
 
+    it 'runs thanos sidecar' do
+      expect(process('/opt/thanos/bin/thanos')).to(be_running)
+      expect(process('/opt/thanos/bin/thanos').args).to(match(/sidecar/))
+    end
+
     it 'listens on port 10902 on all interfaces for HTTP traffic' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--http-address=0.0.0.0:10902/))
     end
 
+    it 'uses an HTTP grace period of 2 minutes' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--http-grace-period=2m/))
+    end
+
     it 'listens on port 10901 on all interfaces for gRPC traffic' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--grpc-address=0.0.0.0:10901/))
+    end
+
+    it 'uses a gRPC grace period of 2 minutes' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-grace-period=2m/))
+    end
+
+    it 'disables gRPC TLS' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-server-tls-cert=( |$)/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-server-tls-key=( |$)/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-server-tls-client-ca=( |$)/))
+    end
+  end
+
+  describe 'with http configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_HTTP_ADDRESS' => '0.0.0.0:11902',
+              'THANOS_HTTP_GRACE_PERIOD' => '4m'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided HTTP address' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--http-address=0.0.0.0:11902/))
+    end
+
+    it 'uses the provided HTTP grace period' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--http-grace-period=4m/))
+    end
+  end
+
+  describe 'with grpc configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_GRPC_ADDRESS' => '0.0.0.0:11901',
+              'THANOS_GRPC_GRACE_PERIOD' => '4m'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided gRPC address' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-address=0.0.0.0:11901/))
+    end
+
+    it 'uses the provided gRPC grace period' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--grpc-grace-period=4m/))
     end
   end
 
@@ -98,7 +180,7 @@ xdescribe 'thanos-sidecar-aws entrypoint' do
 
   def execute_docker_entrypoint(opts)
     logfile_path = '/tmp/docker-entrypoint.log'
-    args = opts[:arguments].join(' ')
+    args = (opts[:arguments] || []).join(' ')
 
     execute_command(
         "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &")
