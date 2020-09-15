@@ -77,9 +77,34 @@ describe 'thanos-sidecar-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--grpc-server-tls-client-ca=( |$)/))
     end
+
+    it 'uses a prometheus URL of http://localhost:9090' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--prometheus.url=http:\/\/localhost:9090/))
+    end
+
+    it 'uses a prometheus ready timeout of 10 minutes' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--prometheus.ready_timeout=10m/))
+    end
+
+    it 'uses a receive connection pool size of zero' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--receive.connection-pool-size=0/))
+    end
+
+    it 'uses a receive connection pool size per host of 100' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--receive.connection-pool-size-per-host=100/))
+    end
+
+    it 'uses a TSDB path of /var/opt/prometheus' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--tsdb.path=\/var\/opt\/prometheus/))
+    end
   end
 
-  describe 'with http configuration' do
+  describe 'with HTTP configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -108,7 +133,7 @@ describe 'thanos-sidecar-aws entrypoint' do
     end
   end
 
-  describe 'with grpc configuration' do
+  describe 'with gRPC configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -134,6 +159,87 @@ describe 'thanos-sidecar-aws entrypoint' do
     it 'uses the provided gRPC grace period' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--grpc-grace-period=4m/))
+    end
+  end
+
+  describe 'with prometheus configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_PROMETHEUS_URL' => 'http://localhost:9191',
+              'THANOS_PROMETHEUS_READY_TIMEOUT' => '5m'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided prometheus URL' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--prometheus.url=http:\/\/localhost:9191/))
+    end
+
+    it 'uses the provided prometheus ready timeout' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--prometheus.ready_timeout=5m/))
+    end
+  end
+
+  describe 'with receive configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_RECEIVE_CONNECTION_POOL_SIZE' => '200',
+              'THANOS_RECEIVE_CONNECTION_POOL_SIZE_PER_HOST' => '50'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided receive connection pool size' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--receive.connection-pool-size=200/))
+    end
+
+    it 'uses the provided receive connection pool size per host' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--receive.connection-pool-size-per-host=50/))
+    end
+  end
+
+  describe 'with tsdb configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_TSDB_PATH' => '/data'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided TSDB path' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--tsdb\.path=\/data/))
     end
   end
 
