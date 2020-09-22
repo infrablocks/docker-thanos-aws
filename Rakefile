@@ -134,11 +134,40 @@ namespace :images do
     end
   end
 
+  namespace :query do
+    RakeDocker.define_image_tasks(
+        image_name: 'thanos-query-aws',
+        argument_names: [:base_image_version]
+    ) do |t, args|
+      args.with_defaults(base_image_version: latest_tag.to_s)
+
+      t.work_directory = 'build/images'
+
+      t.copy_spec = [
+          "src/thanos-query-aws/Dockerfile",
+          "src/thanos-query-aws/start.sh",
+      ]
+
+      t.repository_name = 'thanos-query-aws'
+      t.repository_url = 'infrablocks/thanos-query-aws'
+
+      t.credentials = YAML.load_file(
+          "config/secrets/dockerhub/credentials.yaml")
+
+      t.build_args = {
+          BASE_IMAGE_VERSION: args.base_image_version
+      }
+
+      t.tags = [latest_tag.to_s, 'latest']
+    end
+  end
+
   desc "Build all images"
   task :build do
     [
         'images:base',
-        'images:sidecar'
+        'images:sidecar',
+        'images:query'
     ].each do |t|
       Rake::Task["#{t}:build"].invoke('latest')
       Rake::Task["#{t}:tag"].invoke('latest')
