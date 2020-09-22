@@ -105,9 +105,11 @@ describe 'thanos-sidecar-aws entrypoint' do
 
     it 'disables the reloader' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--reloader.config-file=( |$)/))
+          .to(match(/--reloader\.config-file=( |$)/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--reloader.config-envsubst-file=( |$)/))
+          .to(match(/--reloader\.config-envsubst-file=( |$)/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--reloader\.rule-dir/))
     end
 
     it 'uses a reloader watch interval of 3 minutes' do
@@ -118,6 +120,18 @@ describe 'thanos-sidecar-aws entrypoint' do
     it 'uses a reloader retry interval of 5 seconds' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--reloader.retry-interval=5s/))
+    end
+
+    it 'disables object store shipping' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--objstore\.config-file/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--objstore\.config/))
+    end
+
+    it 'does not instruct shipper to upload compacted blocks' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--shipper\.upload-compacted/))
     end
   end
 
@@ -263,8 +277,15 @@ describe 'thanos-sidecar-aws entrypoint' do
   describe 'with reloader configuration' do
     before(:all) do
       prometheus_config =
-          File.read('spec/fixtures/example-prometheus-config.yml')
+          File.read('spec/fixtures/example-prometheus-configuration.yml')
       escaped_prometheus_config = Shellwords.escape(prometheus_config)
+
+      rule_file_1 =
+          File.read('spec/fixtures/example-prometheus-rule-file-1.yml')
+      escaped_rule_file_1 = Shellwords.escape(rule_file_1)
+      rule_file_2 =
+          File.read('spec/fixtures/example-prometheus-rule-file-2.yml')
+      escaped_rule_file_2 = Shellwords.escape(rule_file_2)
 
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -274,17 +295,32 @@ describe 'thanos-sidecar-aws entrypoint' do
           env: {
               'THANOS_RELOADER_CONFIGURATION_FILE' =>
                   '/opt/prometheus/prometheus.yml',
+              'THANOS_RELOADER_RULE_DIRECTORIES' =>
+                  '/opt/prometheus/rules-1,/opt/prometheus/rules-2',
               'THANOS_RELOADER_WATCH_INTERVAL' => '5m',
               'THANOS_RELOADER_RETRY_INTERVAL' => '4s'
           })
 
-      prometheus_config_dir = "/opt/prometheus/"
-      prometheus_config_file = "#{prometheus_config_dir}prometheus.yml"
+      prometheus_config_dir = "/opt/prometheus"
+      prometheus_config_file = "#{prometheus_config_dir}/prometheus.yml"
+
+      prometheus_rules_dir_1 = "#{prometheus_config_dir}/rules-1"
+      prometheus_rule_file_1 = "#{prometheus_rules_dir_1}/rule-file-1.yml"
+      prometheus_rules_dir_2 = "#{prometheus_config_dir}/rules-2"
+      prometheus_rule_file_2 = "#{prometheus_rules_dir_2}/rule-file-2.yml"
 
       execute_command(
           "mkdir -p #{prometheus_config_dir}")
       execute_command(
+          "mkdir -p #{prometheus_rules_dir_1}")
+      execute_command(
+          "mkdir -p #{prometheus_rules_dir_2}")
+      execute_command(
           "echo #{escaped_prometheus_config} >> #{prometheus_config_file}")
+      execute_command(
+          "echo #{escaped_rule_file_1} >> #{prometheus_rule_file_1}")
+      execute_command(
+          "echo #{escaped_rule_file_2} >> #{prometheus_rule_file_2}")
 
       execute_docker_entrypoint(
           started_indicator: "listening")
@@ -296,6 +332,15 @@ describe 'thanos-sidecar-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
               /--reloader\.config-file=\/opt\/prometheus\/prometheus.yml/))
+    end
+
+    it 'uses the provided reloader rules directory' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--reloader\.rule-dir \/opt\/prometheus\/rules-1/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--reloader\.rule-dir \/opt\/prometheus\/rules-2/))
     end
 
     it 'uses the provided reloader watch interval' do
@@ -312,7 +357,7 @@ describe 'thanos-sidecar-aws entrypoint' do
   describe 'with reloader configuration' do
     before(:all) do
       prometheus_config =
-          File.read('spec/fixtures/example-prometheus-config.yml')
+          File.read('spec/fixtures/example-prometheus-configuration.yml')
       escaped_prometheus_config = Shellwords.escape(prometheus_config)
 
       create_env_file(
@@ -343,6 +388,110 @@ describe 'thanos-sidecar-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
               /--reloader\.config-envsubst-file=\/opt\/prometheus\/prometheus.yml/))
+    end
+  end
+
+  describe 'with object store configuration' do
+    def object_store_configuration
+      File.read('spec/fixtures/example-object-store-configuration.yml')
+    end
+
+    context 'when passed directly' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'passes the provided object store config' do
+        config_option=object_store_configuration
+            .gsub("\n", " ")
+            .gsub('"', '')
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--objstore\.config #{config_option}/))
+      end
+    end
+
+    context 'when passed an object path for a config file' do
+      before(:all) do
+        object_store_config_file_object_path = "#{s3_bucket_path}/objstore.yml"
+
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: object_store_config_file_object_path,
+            content: object_store_configuration)
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_OBJECT_STORE_CONFIGURATION_FILE_OBJECT_PATH' =>
+                    object_store_config_file_object_path
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'fetches the specific object store config file and passes its path' do
+        config_file_listing = command('ls /opt/thanos/conf').stdout
+
+        expect(config_file_listing).to(eq("objstore.yml\n"))
+
+        config_file_path = '/opt/thanos/conf/objstore.yml'
+        config_file_contents = command("cat #{config_file_path}").stdout
+
+        expect(config_file_contents).to(eq(object_store_configuration))
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--objstore\.config-file=#{Regexp.escape(config_file_path)}/))
+      end
+    end
+
+    context 'when passed a filesystem path for a config file' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_OBJECT_STORE_CONFIGURATION_FILE_PATH' =>
+                    '/objstore-config.yml'
+            })
+
+        execute_command(
+            "echo \"#{object_store_configuration}\" > /objstore-config.yml")
+        execute_command(
+            "chown thanos:thanos /objstore-config.yml")
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided file path as the objstore config path' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--objstore\.config-file=\/objstore-config.yml/))
+      end
     end
   end
 
