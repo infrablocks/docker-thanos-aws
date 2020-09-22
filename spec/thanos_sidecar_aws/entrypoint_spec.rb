@@ -102,6 +102,23 @@ describe 'thanos-sidecar-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--tsdb.path=\/var\/opt\/prometheus/))
     end
+
+    it 'disables the reloader' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader.config-file=( |$)/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader.config-envsubst-file=( |$)/))
+    end
+
+    it 'uses a reloader watch interval of 3 minutes' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader.watch-interval=3m/))
+    end
+
+    it 'uses a reloader retry interval of 5 seconds' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader.retry-interval=5s/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -240,6 +257,92 @@ describe 'thanos-sidecar-aws entrypoint' do
     it 'uses the provided TSDB path' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--tsdb\.path=\/data/))
+    end
+  end
+
+  describe 'with reloader configuration' do
+    before(:all) do
+      prometheus_config =
+          File.read('spec/fixtures/example-prometheus-config.yml')
+      escaped_prometheus_config = Shellwords.escape(prometheus_config)
+
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_RELOADER_CONFIGURATION_FILE' =>
+                  '/opt/prometheus/prometheus.yml',
+              'THANOS_RELOADER_WATCH_INTERVAL' => '5m',
+              'THANOS_RELOADER_RETRY_INTERVAL' => '4s'
+          })
+
+      prometheus_config_dir = "/opt/prometheus/"
+      prometheus_config_file = "#{prometheus_config_dir}prometheus.yml"
+
+      execute_command(
+          "mkdir -p #{prometheus_config_dir}")
+      execute_command(
+          "echo #{escaped_prometheus_config} >> #{prometheus_config_file}")
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided reloader configuration file' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--reloader\.config-file=\/opt\/prometheus\/prometheus.yml/))
+    end
+
+    it 'uses the provided reloader watch interval' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader\.watch-interval=5m/))
+    end
+
+    it 'uses the provided reloader retry interval' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--reloader\.retry-interval=4s/))
+    end
+  end
+
+  describe 'with reloader configuration' do
+    before(:all) do
+      prometheus_config =
+          File.read('spec/fixtures/example-prometheus-config.yml')
+      escaped_prometheus_config = Shellwords.escape(prometheus_config)
+
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_RELOADER_CONFIGURATION_ENVSUBST_FILE' =>
+                  '/opt/prometheus/prometheus.yml'
+          })
+
+      prometheus_config_dir = "/opt/prometheus/"
+      prometheus_config_file = "#{prometheus_config_dir}prometheus.yml"
+
+      execute_command(
+          "mkdir -p #{prometheus_config_dir}")
+      execute_command(
+          "echo #{escaped_prometheus_config} >> #{prometheus_config_file}")
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided reloader configuration envsubst file' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--reloader\.config-envsubst-file=\/opt\/prometheus\/prometheus.yml/))
     end
   end
 

@@ -18,6 +18,11 @@ rcv_conn_pool_size_per_host=\
 
 tsdb_path="${THANOS_TSDB_PATH:-/var/opt/prometheus}"
 
+reloader_config_file="${THANOS_RELOADER_CONFIGURATION_FILE}"
+reloader_config_envsubst_file="${THANOS_RELOADER_CONFIGURATION_ENVSUBST_FILE}"
+reloader_watch_interval="${THANOS_RELOADER_WATCH_INTERVAL:-3m}"
+reloader_retry_interval="${THANOS_RELOADER_RETRY_INTERVAL:-5s}"
+
 exec /opt/thanos/bin/start.sh sidecar \
     --http-address="${http_address}" \
     --http-grace-period="${http_grace_period}" \
@@ -35,5 +40,10 @@ exec /opt/thanos/bin/start.sh sidecar \
     --receive.connection-pool-size-per-host="${rcv_conn_pool_size_per_host}" \
     \
     --tsdb.path="${tsdb_path}" \
+    \
+    --reloader.config-file="${reloader_config_file}" \
+    --reloader.config-envsubst-file="${reloader_config_envsubst_file}" \
+    --reloader.watch-interval="${reloader_watch_interval}" \
+    --reloader.retry-interval="${reloader_retry_interval}" \
     \
     "$@"
