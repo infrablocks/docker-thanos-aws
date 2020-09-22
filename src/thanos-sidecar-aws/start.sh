@@ -51,6 +51,16 @@ if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION_FILE_PATH}" ]; then
   objstore_config_file_option="--objstore.config-file=${file_path}"
 fi
 
+shipper_upload_compacted_option=
+if [[ "$THANOS_SHIPPER_UPLOAD_COMPACTED_ENABLED" = "yes" ]]; then
+  shipper_upload_compacted_option="--shipper.upload-compacted"
+fi
+
+min_time_option=
+if [ -n "$THANOS_MIN_TIME" ]; then
+  min_time_option="--min-time=${THANOS_MIN_TIME}"
+fi
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh sidecar \
     --http-address="${http_address}" \
@@ -78,5 +88,9 @@ exec /opt/thanos/bin/start.sh sidecar \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
+    \
+    ${shipper_upload_compacted_option} \
+    \
+    ${min_time_option} \
     \
     "$@"

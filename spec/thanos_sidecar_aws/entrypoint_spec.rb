@@ -133,6 +133,11 @@ describe 'thanos-sidecar-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--shipper\.upload-compacted/))
     end
+
+    it 'does not include a start time for metrics' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--min-time/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -492,6 +497,75 @@ describe 'thanos-sidecar-aws entrypoint' do
             .to(match(
                 /--objstore\.config-file=\/objstore-config.yml/))
       end
+    end
+  end
+
+  describe 'with shipper upload compacted enabled' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_SHIPPER_UPLOAD_COMPACTED_ENABLED' => 'yes'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'includes shipper upload compacted as true' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--shipper\.upload-compacted/))
+    end
+  end
+
+  describe 'with shipper upload compacted disabled' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_SHIPPER_UPLOAD_COMPACTED_ENABLED' => 'no'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'does not nclude shipper upload compacted option' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--shipper\.upload-compacted/))
+    end
+  end
+
+  describe 'with minimum time configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_MIN_TIME' => '2020-09-22T15:31:29Z'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided minimum time' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--min-time=2020-09-22T15:31:29Z/))
     end
   end
 
