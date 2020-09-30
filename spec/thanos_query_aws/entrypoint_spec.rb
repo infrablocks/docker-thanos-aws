@@ -69,13 +69,26 @@ describe 'thanos-query-aws entrypoint' do
           .to(match(/--grpc-grace-period=2m/))
     end
 
-    it 'disables gRPC TLS' do
+    it 'disables gRPC server TLS' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--grpc-server-tls-cert=( |$)/))
+          .not_to(match(/--grpc-server-tls-cert/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--grpc-server-tls-key=( |$)/))
+          .not_to(match(/--grpc-server-tls-key/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--grpc-server-tls-client-ca=( |$)/))
+          .not_to(match(/--grpc-server-tls-client-ca/))
+    end
+
+    it 'disables gRPC client TLS' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--grpc-client-tls-secure/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--grpc-client-tls-cert/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--grpc-client-tls-key/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--grpc-client-tls-ca/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--grpc-client-server-name/))
     end
   end
 
@@ -134,6 +147,168 @@ describe 'thanos-query-aws entrypoint' do
     it 'uses the provided gRPC grace period' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--grpc-grace-period=4m/))
+    end
+  end
+
+  describe 'with gRPC server TLS configuration' do
+    context 'when passed filesystem paths for TLS files' do
+      before(:all) do
+        cert = File.read('spec/fixtures/example-cert.pem')
+        key = File.read('spec/fixtures/example-key.pem')
+        client_ca = File.read('spec/fixtures/example-ca.pem')
+
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_GRPC_SERVER_TLS_CERTIFICATE_FILE_PATH' => '/cert.pem',
+                'THANOS_GRPC_SERVER_TLS_KEY_FILE_PATH' => '/key.pem',
+                'THANOS_GRPC_SERVER_TLS_CLIENT_CA_FILE_PATH' => '/client-ca.pem'
+            })
+
+        execute_command(
+            "echo \"#{cert}\" > /cert.pem")
+        execute_command(
+            "echo \"#{key}\" > /key.pem")
+        execute_command(
+            "echo \"#{client_ca}\" > /client-ca.pem")
+        execute_command(
+            "chown thanos:thanos /cert.pem")
+        execute_command(
+            "chown thanos:thanos /key.pem")
+        execute_command(
+            "chown thanos:thanos /client-ca.pem")
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided file path as the server TLS cert' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-cert=\/cert.pem/))
+      end
+
+      it 'uses the provided file path as the server TLS key' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-key=\/key.pem/))
+      end
+
+      it 'uses the provided file path as the server TLS client CA' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-client-ca=\/client-ca.pem/))
+      end
+    end
+
+    context 'when passed object paths for TLS files' do
+      def cert
+        File.read('spec/fixtures/example-cert.pem')
+      end
+
+      def key
+        File.read('spec/fixtures/example-key.pem')
+      end
+
+      def client_ca
+        File.read('spec/fixtures/example-ca.pem')
+      end
+
+      before(:all) do
+        cert_object_path = "#{s3_bucket_path}/cert.pem"
+        key_object_path = "#{s3_bucket_path}/key.pem"
+        client_ca_object_path = "#{s3_bucket_path}/client-ca.pem"
+
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: cert_object_path,
+            content: cert)
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: key_object_path,
+            content: key)
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: client_ca_object_path,
+            content: client_ca)
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_GRPC_SERVER_TLS_CERTIFICATE_FILE_OBJECT_PATH' =>
+                    cert_object_path,
+                'THANOS_GRPC_SERVER_TLS_KEY_FILE_OBJECT_PATH' =>
+                    key_object_path,
+                'THANOS_GRPC_SERVER_TLS_CLIENT_CA_FILE_OBJECT_PATH' =>
+                    client_ca_object_path,
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'fetches the specified server TLS certificate, key and client CA' do
+        config_file_listing = command('ls /opt/thanos/conf').stdout
+
+        expect(config_file_listing)
+            .to(eq([
+                "server-cert.pem",
+                "server-client-ca.pem",
+                "server-key.pem"
+            ].join("\n") + "\n"))
+
+        cert_path = '/opt/thanos/conf/server-cert.pem'
+        cert_contents = command("cat #{cert_path}").stdout
+
+        key_path = '/opt/thanos/conf/server-key.pem'
+        key_contents = command("cat #{key_path}").stdout
+
+        client_ca_path = '/opt/thanos/conf/server-client-ca.pem'
+        client_ca_contents = command("cat #{client_ca_path}").stdout
+
+        expect(cert_contents).to(eq(cert))
+        expect(key_contents).to(eq(key))
+        expect(client_ca_contents).to(eq(client_ca))
+      end
+
+      it 'uses the fetched TLS certificate' do
+        cert_path = '/opt/thanos/conf/server-cert.pem'
+
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-cert=#{Regexp.escape(cert_path)}/))
+      end
+
+      it 'uses the fetched TLS key' do
+        key_path = '/opt/thanos/conf/server-key.pem'
+
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-key=#{Regexp.escape(key_path)}/))
+      end
+
+      it 'uses the fetched TLS client CA' do
+        client_ca_path = '/opt/thanos/conf/server-client-ca.pem'
+
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--grpc-server-tls-client-ca=#{Regexp.escape(client_ca_path)}/))
+      end
     end
   end
 
