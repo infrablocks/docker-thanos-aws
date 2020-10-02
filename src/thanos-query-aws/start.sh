@@ -54,6 +54,56 @@ if [ -n "${THANOS_GRPC_SERVER_TLS_CLIENT_CA_FILE_PATH}" ]; then
   grpc_server_tls_client_ca_option="--grpc-server-tls-client-ca=${file_path}"
 fi
 
+grpc_client_tls_secure_option=
+if [[ "$THANOS_GRPC_CLIENT_TLS_SECURE_ENABLED" = "yes" ]]; then
+  grpc_client_tls_secure_option="--grpc-client-tls-secure"
+fi
+
+grpc_client_tls_cert_option=
+if [ -n "${THANOS_GRPC_CLIENT_TLS_CERTIFICATE_FILE_OBJECT_PATH}" ]; then
+  default_path=/opt/thanos/conf/client-cert.pem
+  echo "Fetching client TLS certificate."
+  fetch_file_from_s3 \
+    "${AWS_S3_BUCKET_REGION}" \
+    "${THANOS_GRPC_CLIENT_TLS_CERTIFICATE_FILE_OBJECT_PATH}" \
+    "${default_path}"
+  grpc_client_tls_cert_option="--grpc-client-tls-cert=${default_path}"
+fi
+if [ -n "${THANOS_GRPC_CLIENT_TLS_CERTIFICATE_FILE_PATH}" ]; then
+  file_path="${THANOS_GRPC_CLIENT_TLS_CERTIFICATE_FILE_PATH}"
+  grpc_client_tls_cert_option="--grpc-client-tls-cert=${file_path}"
+fi
+
+grpc_client_tls_key_option=
+if [ -n "${THANOS_GRPC_CLIENT_TLS_KEY_FILE_OBJECT_PATH}" ]; then
+  default_path=/opt/thanos/conf/client-key.pem
+  echo "Fetching client TLS key."
+  fetch_file_from_s3 \
+    "${AWS_S3_BUCKET_REGION}" \
+    "${THANOS_GRPC_CLIENT_TLS_KEY_FILE_OBJECT_PATH}" \
+    "${default_path}"
+  grpc_client_tls_key_option="--grpc-client-tls-key=${default_path}"
+fi
+if [ -n "${THANOS_GRPC_CLIENT_TLS_KEY_FILE_PATH}" ]; then
+  file_path="${THANOS_GRPC_CLIENT_TLS_KEY_FILE_PATH}"
+  grpc_client_tls_key_option="--grpc-client-tls-key=${file_path}"
+fi
+
+grpc_client_tls_ca_option=
+if [ -n "${THANOS_GRPC_CLIENT_TLS_CA_FILE_OBJECT_PATH}" ]; then
+  default_path=/opt/thanos/conf/client-ca.pem
+  echo "Fetching client TLS CA."
+  fetch_file_from_s3 \
+    "${AWS_S3_BUCKET_REGION}" \
+    "${THANOS_GRPC_CLIENT_TLS_CA_FILE_OBJECT_PATH}" \
+    "${default_path}"
+  grpc_client_tls_ca_option="--grpc-client-tls-ca=${default_path}"
+fi
+if [ -n "${THANOS_GRPC_CLIENT_TLS_CA_FILE_PATH}" ]; then
+  file_path="${THANOS_GRPC_CLIENT_TLS_CA_FILE_PATH}"
+  grpc_client_tls_ca_option="--grpc-client-tls-ca=${file_path}"
+fi
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
     --http-address="${http_address}" \
@@ -61,8 +111,14 @@ exec /opt/thanos/bin/start.sh query \
     \
     --grpc-address="${grpc_address}" \
     --grpc-grace-period="${grpc_grace_period}" \
+    \
     ${grpc_server_tls_cert_option} \
     ${grpc_server_tls_key_option} \
     ${grpc_server_tls_client_ca_option} \
+    \
+    ${grpc_client_tls_secure_option} \
+    ${grpc_client_tls_cert_option} \
+    ${grpc_client_tls_key_option} \
+    ${grpc_client_tls_ca_option} \
     \
     "$@"
