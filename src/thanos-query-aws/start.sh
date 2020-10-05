@@ -104,6 +104,21 @@ if [ -n "${THANOS_GRPC_CLIENT_TLS_CA_FILE_PATH}" ]; then
   grpc_client_tls_ca_option="--grpc-client-tls-ca=${file_path}"
 fi
 
+web_route_prefix_option=
+if [ -n "${THANOS_WEB_ROUTE_PREFIX}" ]; then
+  web_route_prefix_option="--web.route-prefix=${THANOS_WEB_ROUTE_PREFIX}"
+fi
+
+web_external_prefix_option=
+if [ -n "${THANOS_WEB_EXTERNAL_PREFIX}" ]; then
+  web_external_prefix_option="--web.external-prefix=${THANOS_WEB_EXTERNAL_PREFIX}"
+fi
+
+web_prefix_header_option=
+if [ -n "${THANOS_WEB_PREFIX_HEADER}" ]; then
+  web_prefix_header_option="--web.prefix-header=${THANOS_WEB_PREFIX_HEADER}"
+fi
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
     --http-address="${http_address}" \
@@ -120,5 +135,9 @@ exec /opt/thanos/bin/start.sh query \
     ${grpc_client_tls_cert_option} \
     ${grpc_client_tls_key_option} \
     ${grpc_client_tls_ca_option} \
+    \
+    ${web_route_prefix_option} \
+    ${web_external_prefix_option} \
+    ${web_prefix_header_option} \
     \
     "$@"

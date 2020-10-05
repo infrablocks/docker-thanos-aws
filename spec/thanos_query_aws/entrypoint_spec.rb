@@ -90,6 +90,15 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--grpc-client-server-name/))
     end
+
+    it 'does not include any web configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--web.external-prefix/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--web.route-prefix/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--web.prefix-header/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -533,6 +542,44 @@ describe 'thanos-query-aws entrypoint' do
             .to(match(
                 /--grpc-client-tls-ca=#{Regexp.escape(ca_path)}/))
       end
+    end
+  end
+
+  describe 'with web configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_WEB_ROUTE_PREFIX' => '/thanos',
+              'THANOS_WEB_EXTERNAL_PREFIX' => '/query',
+              'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided web route prefix' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--web.route-prefix=\/thanos/))
+    end
+
+    it 'uses the provided web external prefix' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--web.external-prefix=\/query/))
+    end
+
+    it 'uses the provided web prefix header' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--web.prefix-header=X-Forwarded-Prefix/))
     end
   end
 
