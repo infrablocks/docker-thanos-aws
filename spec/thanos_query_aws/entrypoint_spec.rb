@@ -99,6 +99,11 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--web.prefix-header/))
     end
+
+    it 'does not include any log configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--log.request.decision/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -580,6 +585,30 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
               /--web.prefix-header=X-Forwarded-Prefix/))
+    end
+  end
+
+  describe 'with log configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_LOG_REQUEST_DECISION' => 'NoLogCall'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided log request decision' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--log.request.decision=NoLogCall/))
     end
   end
 

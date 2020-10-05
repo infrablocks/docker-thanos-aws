@@ -119,6 +119,12 @@ if [ -n "${THANOS_WEB_PREFIX_HEADER}" ]; then
   web_prefix_header_option="--web.prefix-header=${THANOS_WEB_PREFIX_HEADER}"
 fi
 
+log_request_decision_option=
+if [ -n "${THANOS_LOG_REQUEST_DECISION}" ]; then
+  decision="${THANOS_LOG_REQUEST_DECISION}"
+  log_request_decision_option="--log.request.decision=${decision}"
+fi
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
     --http-address="${http_address}" \
@@ -139,5 +145,7 @@ exec /opt/thanos/bin/start.sh query \
     ${web_route_prefix_option} \
     ${web_external_prefix_option} \
     ${web_prefix_header_option} \
+    \
+    ${log_request_decision_option} \
     \
     "$@"
