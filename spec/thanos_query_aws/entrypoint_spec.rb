@@ -104,6 +104,25 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--log.request.decision/))
     end
+
+    it 'does not include any query configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.timeout/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.max-concurrent/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.lookback-delta/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.max-concurrent-select/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.replica-label/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.auto-downsampling/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.partial-response/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--query.default-evaluation-interval/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -609,6 +628,71 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
               /--log.request.decision=NoLogCall/))
+    end
+  end
+
+  describe 'with query configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_QUERY_TIMEOUT' => '3m',
+              'THANOS_QUERY_MAX_CONCURRENT' => '30',
+              'THANOS_QUERY_LOOKBACK_DELTA' => '10m',
+              'THANOS_QUERY_MAX_CONCURRENT_SELECT' => '8',
+              'THANOS_QUERY_REPLICA_LABEL' => 'instance',
+              'THANOS_QUERY_AUTO_DOWNSAMPLING_ENABLED' => 'yes',
+              'THANOS_QUERY_PARTIAL_RESPONSE_ENABLED' => 'yes',
+              'THANOS_QUERY_DEFAULT_EVALUATION_INTERVAL' => '2m',
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided query timeout' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.timeout=3m/))
+    end
+
+    it 'uses the provided maximum concurrent queries' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.max-concurrent=30/))
+    end
+
+    it 'uses the provided query lookback delta' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.lookback-delta=10m/))
+    end
+
+    it 'uses the provided maximum concurrent query selects' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.max-concurrent-select=8/))
+    end
+
+    it 'uses the provided query replica label' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.replica-label=instance/))
+    end
+
+    it 'enables query auto downsampling' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.auto-downsampling/))
+    end
+
+    it 'enables query partial response' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.partial-response/))
+    end
+
+    it 'uses the provided query default evaluation interval' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query.default-evaluation-interval=2m/))
     end
   end
 

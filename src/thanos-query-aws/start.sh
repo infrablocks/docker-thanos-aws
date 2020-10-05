@@ -125,6 +125,53 @@ if [ -n "${THANOS_LOG_REQUEST_DECISION}" ]; then
   log_request_decision_option="--log.request.decision=${decision}"
 fi
 
+query_timeout_option=
+if [ -n "${THANOS_QUERY_TIMEOUT}" ]; then
+  query_timeout_option="--query.timeout=${THANOS_QUERY_TIMEOUT}"
+fi
+
+query_max_concurrent_option=
+if [ -n "${THANOS_QUERY_MAX_CONCURRENT}" ]; then
+  max_concurrent="${THANOS_QUERY_MAX_CONCURRENT}"
+  query_max_concurrent_option="--query.max-concurrent=${max_concurrent}"
+fi
+
+query_lookback_delta_option=
+if [ -n "${THANOS_QUERY_LOOKBACK_DELTA}" ]; then
+  lookback_delta="${THANOS_QUERY_LOOKBACK_DELTA}"
+  query_lookback_delta_option="--query.lookback-delta=${lookback_delta}"
+fi
+
+query_max_concurrent_select_option=
+if [ -n "${THANOS_QUERY_MAX_CONCURRENT_SELECT}" ]; then
+  select="${THANOS_QUERY_MAX_CONCURRENT_SELECT}"
+  query_max_concurrent_select_option="--query.max-concurrent-select=${select}"
+fi
+
+query_replica_label_option=
+if [ -n "${THANOS_QUERY_REPLICA_LABEL}" ]; then
+  label="${THANOS_QUERY_REPLICA_LABEL}"
+  query_replica_label_option="--query.replica-label=${label}"
+fi
+
+query_auto_downsampling_option=
+if [[ "$THANOS_QUERY_AUTO_DOWNSAMPLING_ENABLED" = "yes" ]]; then
+  query_auto_downsampling_option="--query.auto-downsampling"
+fi
+
+query_partial_response_option=
+if [[ "$THANOS_QUERY_PARTIAL_RESPONSE_ENABLED" = "yes" ]]; then
+  query_partial_response_option="--query.partial-response"
+fi
+
+query_default_evaluation_interval_option=
+if [ -n "${THANOS_QUERY_DEFAULT_EVALUATION_INTERVAL}" ]; then
+  option="--query.default-evaluation-interval"
+  interval="${THANOS_QUERY_DEFAULT_EVALUATION_INTERVAL}"
+  query_default_evaluation_interval_option="${option}=${interval}"
+fi
+
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
     --http-address="${http_address}" \
@@ -147,5 +194,14 @@ exec /opt/thanos/bin/start.sh query \
     ${web_prefix_header_option} \
     \
     ${log_request_decision_option} \
+    \
+    ${query_timeout_option} \
+    ${query_max_concurrent_option} \
+    ${query_lookback_delta_option} \
+    ${query_max_concurrent_select_option} \
+    ${query_replica_label_option} \
+    ${query_auto_downsampling_option} \
+    ${query_partial_response_option} \
+    ${query_default_evaluation_interval_option} \
     \
     "$@"
