@@ -93,35 +93,52 @@ describe 'thanos-query-aws entrypoint' do
 
     it 'does not include any web configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web.external-prefix/))
+          .not_to(match(/--web\.external-prefix/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web.route-prefix/))
+          .not_to(match(/--web\.route-prefix/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web.prefix-header/))
+          .not_to(match(/--web\.prefix-header/))
     end
 
     it 'does not include any log configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--log.request.decision/))
+          .not_to(match(/--log\.request.decision/))
     end
 
     it 'does not include any query configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.timeout/))
+          .not_to(match(/--query\.timeout/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.max-concurrent/))
+          .not_to(match(/--query\.max-concurrent/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.lookback-delta/))
+          .not_to(match(/--query\.lookback-delta/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.max-concurrent-select/))
+          .not_to(match(/--query\.max-concurrent-select/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.replica-label/))
+          .not_to(match(/--query\.replica-label/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.auto-downsampling/))
+          .not_to(match(/--query\.auto-downsampling/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.partial-response/))
+          .not_to(match(/--query\.partial-response/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--query.default-evaluation-interval/))
+          .not_to(match(/--query\.default-evaluation-interval/))
+    end
+
+    it 'does not include any store configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store=/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store-strict=/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.sd-files/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.sd-interval/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.sd-dns-interval/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.unhealthy-timeout/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.response-timeout/))
     end
   end
 
@@ -591,19 +608,19 @@ describe 'thanos-query-aws entrypoint' do
     it 'uses the provided web route prefix' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
-              /--web.route-prefix=\/thanos/))
+              /--web\.route-prefix=\/thanos/))
     end
 
     it 'uses the provided web external prefix' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
-              /--web.external-prefix=\/query/))
+              /--web\.external-prefix=\/query/))
     end
 
     it 'uses the provided web prefix header' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
-              /--web.prefix-header=X-Forwarded-Prefix/))
+              /--web\.prefix-header=X-Forwarded-Prefix/))
     end
   end
 
@@ -627,7 +644,7 @@ describe 'thanos-query-aws entrypoint' do
     it 'uses the provided log request decision' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
-              /--log.request.decision=NoLogCall/))
+              /--log\.request\.decision=NoLogCall/))
     end
   end
 
@@ -657,42 +674,255 @@ describe 'thanos-query-aws entrypoint' do
 
     it 'uses the provided query timeout' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.timeout=3m/))
+          .to(match(/--query\.timeout=3m/))
     end
 
     it 'uses the provided maximum concurrent queries' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.max-concurrent=30/))
+          .to(match(/--query\.max-concurrent=30/))
     end
 
     it 'uses the provided query lookback delta' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.lookback-delta=10m/))
+          .to(match(/--query\.lookback-delta=10m/))
     end
 
     it 'uses the provided maximum concurrent query selects' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.max-concurrent-select=8/))
+          .to(match(/--query\.max-concurrent-select=8/))
     end
 
     it 'uses the provided query replica label' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.replica-label=instance/))
+          .to(match(/--query\.replica-label=instance/))
     end
 
     it 'enables query auto downsampling' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.auto-downsampling/))
+          .to(match(/--query\.auto-downsampling/))
     end
 
     it 'enables query partial response' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.partial-response/))
+          .to(match(/--query\.partial-response/))
     end
 
     it 'uses the provided query default evaluation interval' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--query.default-evaluation-interval=2m/))
+          .to(match(/--query\.default-evaluation-interval=2m/))
+    end
+  end
+
+  describe 'with store configuration' do
+    context 'for timeouts' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_STORE_UNHEALTHY_TIMEOUT' => '3m',
+                'THANOS_STORE_RESPONSE_TIMEOUT' => '200ms'
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided store unhealthy timeout' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store\.unhealthy-timeout=3m/))
+      end
+
+      it 'uses the provided response timeout' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store\.response-timeout=200ms/))
+      end
+    end
+
+    context 'using static addresses' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_STORE_ADDRESSES' => 'localhost:1111,localhost:2222',
+                'THANOS_STORE_STRICT_ADDRESSES' => 'localhost:3333,localhost:4444',
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided store addresses' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store=localhost:1111/))
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store=localhost:2222/))
+      end
+
+      it 'uses the provided store strict addresses' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store-strict=localhost:3333/))
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--store-strict=localhost:4444/))
+      end
+    end
+
+    context 'using sd files' do
+      context 'when provided as file paths' do
+        before(:all) do
+          sd_file_1 =
+              File.read('spec/fixtures/example-sd-file-1.yml')
+          sd_file_2 =
+              File.read('spec/fixtures/example-sd-file-2.yml')
+
+          sd_file_1_dir = "/sd-1"
+          sd_file_1_path = "#{sd_file_1_dir}/sd-file-1.yml"
+          sd_file_2_dir = "/sd-2"
+          sd_file_2_path = "#{sd_file_2_dir}/sd-file-2.yml"
+
+          escaped_sd_file_1 = Shellwords.escape(sd_file_1)
+          escaped_sd_file_2 = Shellwords.escape(sd_file_2)
+
+          create_env_file(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: s3_env_file_object_path,
+              env: {
+                  'THANOS_STORE_SD_FILE_PATHS' =>
+                      "#{sd_file_1_path},#{sd_file_2_path}",
+                  'THANOS_STORE_SD_INTERVAL' => '3m',
+                  'THANOS_STORE_SD_DNS_INTERVAL' => '10s',
+              })
+
+          execute_command(
+              "mkdir -p #{sd_file_1_dir}")
+          execute_command(
+              "mkdir -p #{sd_file_2_dir}")
+          execute_command(
+              "echo #{escaped_sd_file_1} >> #{sd_file_1_path}")
+          execute_command(
+              "echo #{escaped_sd_file_2} >> #{sd_file_2_path}")
+
+          execute_docker_entrypoint(
+              started_indicator: "listening")
+        end
+
+        after(:all, &:reset_docker_backend)
+
+        it 'uses the provided store service discovery file paths' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--store\.sd-files=\/sd-1\/sd-file-1.yml/))
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--store\.sd-files=\/sd-2\/sd-file-2.yml/))
+        end
+
+        it 'uses the provided store service discovery interval' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(/--store\.sd-interval=3m/))
+        end
+
+        it 'uses the provided store service discovery DNS interval' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(/--store\.sd-dns-interval=10s/))
+        end
+      end
+
+      context 'when provided as file object paths' do
+        def sd_file_1
+          File.read('spec/fixtures/example-sd-file-1.yml')
+        end
+
+        def sd_file_2
+          File.read('spec/fixtures/example-sd-file-2.yml')
+        end
+
+        before(:all) do
+          sd_file_1_object_path = "#{s3_bucket_path}/sd-file-1.yml"
+          sd_file_2_object_path = "#{s3_bucket_path}/sd-file-2.yml"
+
+          create_object(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: sd_file_1_object_path,
+              content: sd_file_1)
+          create_object(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: sd_file_2_object_path,
+              content: sd_file_2)
+          create_env_file(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: s3_env_file_object_path,
+              env: {
+                  'THANOS_STORE_SD_FILE_OBJECT_PATHS' =>
+                      "#{sd_file_1_object_path},#{sd_file_2_object_path}",
+                  'THANOS_STORE_SD_INTERVAL' => '3m',
+                  'THANOS_STORE_SD_DNS_INTERVAL' => '10s',
+              })
+
+          execute_docker_entrypoint(
+              started_indicator: "listening")
+        end
+
+        after(:all, &:reset_docker_backend)
+
+        it 'fetches the specified service discovery files' do
+          config_file_listing = command('ls /opt/thanos/conf/sd/').stdout
+
+          expect(config_file_listing)
+              .to(eq([
+                  "sd-file-1.yml",
+                  "sd-file-2.yml"
+              ].join("\n") + "\n"))
+
+          sd_file_1_path = '/opt/thanos/conf/sd/sd-file-1.yml'
+          sd_file_1_contents = command("cat #{sd_file_1_path}").stdout
+
+          sd_file_2_path = '/opt/thanos/conf/sd/sd-file-2.yml'
+          sd_file_2_contents = command("cat #{sd_file_2_path}").stdout
+
+          expect(sd_file_1_contents).to(eq(sd_file_1))
+          expect(sd_file_2_contents).to(eq(sd_file_2))
+        end
+
+        it 'uses the fetched service discovery files' do
+          sd_file_1_path = '/opt/thanos/conf/sd/sd-file-1.yml'
+          sd_file_2_path = '/opt/thanos/conf/sd/sd-file-2.yml'
+
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--store\.sd-files=#{Regexp.escape(sd_file_1_path)}/))
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--store\.sd-files=#{Regexp.escape(sd_file_2_path)}/))
+        end
+
+        it 'uses the provided store service discovery interval' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(/--store\.sd-interval=3m/))
+        end
+
+        it 'uses the provided store service discovery DNS interval' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(/--store\.sd-dns-interval=10s/))
+        end
+      end
     end
   end
 

@@ -171,6 +171,60 @@ if [ -n "${THANOS_QUERY_DEFAULT_EVALUATION_INTERVAL}" ]; then
   query_default_evaluation_interval_option="${option}=${interval}"
 fi
 
+store_address_options=()
+for store_address in ${THANOS_STORE_ADDRESSES//,/ }; do
+  store_address_options+=("--store=${store_address}")
+done
+
+store_strict_address_options=()
+for store_strict_address in ${THANOS_STORE_STRICT_ADDRESSES//,/ }; do
+  store_strict_address_options+=("--store-strict=${store_strict_address}")
+done
+
+store_sd_files_options=()
+if [ -n "${THANOS_STORE_SD_FILE_OBJECT_PATHS}" ]; then
+  sd_file_dir=/opt/thanos/conf/sd
+  for sd_file_object_path in ${THANOS_STORE_SD_FILE_OBJECT_PATHS//,/ }; do
+    sd_file_name="${sd_file_object_path##*/}"
+    sd_file_path="${sd_file_dir}/${sd_file_name}"
+
+    fetch_file_from_s3 \
+      "${AWS_S3_BUCKET_REGION}" \
+      "${sd_file_object_path}" \
+      "${sd_file_path}"
+
+    store_sd_files_options+=("--store.sd-files=${sd_file_path}")
+  done
+fi
+if [ -n "${THANOS_STORE_SD_FILE_PATHS}" ]; then
+  for sd_file_path in ${THANOS_STORE_SD_FILE_PATHS//,/ }; do
+    store_sd_files_options+=("--store.sd-files=${sd_file_path}")
+  done
+fi
+
+store_sd_interval_option=
+if [ -n "${THANOS_STORE_SD_INTERVAL}" ]; then
+  interval="${THANOS_STORE_SD_INTERVAL}"
+  store_sd_interval_option="--store.sd-interval=${interval}"
+fi
+
+store_sd_dns_interval_option=
+if [ -n "${THANOS_STORE_SD_DNS_INTERVAL}" ]; then
+  interval="${THANOS_STORE_SD_DNS_INTERVAL}"
+  store_sd_dns_interval_option="--store.sd-dns-interval=${interval}"
+fi
+
+store_unhealthy_timeout_option=
+if [ -n "${THANOS_STORE_UNHEALTHY_TIMEOUT}" ]; then
+  timeout="${THANOS_STORE_UNHEALTHY_TIMEOUT}"
+  store_unhealthy_timeout_option="--store.unhealthy-timeout=${timeout}"
+fi
+
+store_response_timeout_option=
+if [ -n "${THANOS_STORE_RESPONSE_TIMEOUT}" ]; then
+  timeout="${THANOS_STORE_RESPONSE_TIMEOUT}"
+  store_response_timeout_option="--store.response-timeout=${timeout}"
+fi
 
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
@@ -203,5 +257,13 @@ exec /opt/thanos/bin/start.sh query \
     ${query_auto_downsampling_option} \
     ${query_partial_response_option} \
     ${query_default_evaluation_interval_option} \
+    \
+    "${store_address_options[@]}" \
+    "${store_strict_address_options[@]}" \
+    "${store_sd_files_options[@]}" \
+    ${store_sd_interval_option} \
+    ${store_sd_dns_interval_option} \
+    ${store_unhealthy_timeout_option} \
+    ${store_response_timeout_option} \
     \
     "$@"
