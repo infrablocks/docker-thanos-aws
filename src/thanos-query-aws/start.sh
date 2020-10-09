@@ -2,6 +2,7 @@
 
 [ "$TRACE" = "yes" ] && set -x
 set -e
+set -x
 
 http_address="${THANOS_HTTP_ADDRESS:-0.0.0.0:10902}"
 http_grace_period="${THANOS_HTTP_GRACE_PERIOD:-2m}"
@@ -226,6 +227,14 @@ if [ -n "${THANOS_STORE_RESPONSE_TIMEOUT}" ]; then
   store_response_timeout_option="--store.response-timeout=${timeout}"
 fi
 
+selector_label_options=()
+for selector_label in ${THANOS_SELECTOR_LABELS//,/ }; do
+  # shellcheck disable=SC2206
+  selector_label_parts=(${selector_label//=/ })
+  selector_label_options+=("--selector-label=${selector_label_parts[0]}=\"${selector_label_parts[1]}\"")
+done
+
+
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh query \
     --http-address="${http_address}" \
@@ -266,4 +275,5 @@ exec /opt/thanos/bin/start.sh query \
     ${store_unhealthy_timeout_option} \
     ${store_response_timeout_option} \
     \
+    "${selector_label_options[@]}" \
     "$@"

@@ -140,6 +140,11 @@ describe 'thanos-query-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--store\.response-timeout/))
     end
+
+    it 'does not include any selector labels' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--selector-label/))
+    end
   end
 
   describe 'with HTTP configuration' do
@@ -923,6 +928,33 @@ describe 'thanos-query-aws entrypoint' do
               .to(match(/--store\.sd-dns-interval=10s/))
         end
       end
+    end
+  end
+
+  describe 'with selector labels configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_SELECTOR_LABELS' => 'thing1=value1,thing2=value2'
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided selector labels' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--selector-label=thing1="value1"/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--selector-label=thing2="value2"/))
     end
   end
 
