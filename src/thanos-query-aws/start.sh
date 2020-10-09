@@ -2,7 +2,6 @@
 
 [ "$TRACE" = "yes" ] && set -x
 set -e
-set -x
 
 http_address="${THANOS_HTTP_ADDRESS:-0.0.0.0:10902}"
 http_grace_period="${THANOS_HTTP_GRACE_PERIOD:-2m}"

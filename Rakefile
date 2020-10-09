@@ -162,12 +162,41 @@ namespace :images do
     end
   end
 
+  namespace :store do
+    RakeDocker.define_image_tasks(
+        image_name: 'thanos-store-aws',
+        argument_names: [:base_image_version]
+    ) do |t, args|
+      args.with_defaults(base_image_version: latest_tag.to_s)
+
+      t.work_directory = 'build/images'
+
+      t.copy_spec = [
+          "src/thanos-store-aws/Dockerfile",
+          "src/thanos-store-aws/start.sh",
+      ]
+
+      t.repository_name = 'thanos-store-aws'
+      t.repository_url = 'infrablocks/thanos-store-aws'
+
+      t.credentials = YAML.load_file(
+          "config/secrets/dockerhub/credentials.yaml")
+
+      t.build_args = {
+          BASE_IMAGE_VERSION: args.base_image_version
+      }
+
+      t.tags = [latest_tag.to_s, 'latest']
+    end
+  end
+
   desc "Build all images"
   task :build do
     [
         'images:base',
         'images:sidecar',
-        'images:query'
+        'images:query',
+        'images:store'
     ].each do |t|
       Rake::Task["#{t}:build"].invoke('latest')
       Rake::Task["#{t}:tag"].invoke('latest')
