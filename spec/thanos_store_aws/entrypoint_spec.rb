@@ -34,7 +34,7 @@ describe 'thanos-store-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  describe 'by default' do
+  fdescribe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -86,11 +86,9 @@ describe 'thanos-store-aws entrypoint' do
           .not_to(match(/--grpc-server-tls-client-ca/))
     end
 
-    it 'does not include any web configuration' do
+    it 'uses a data directory of /var/opt/thanos' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web\.external-prefix/))
-      expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web\.prefix-header/))
+          .to(match(/--data-dir=\/var\/opt\/thanos/))
     end
 
     it 'uses the provided object store configuration' do
@@ -99,6 +97,13 @@ describe 'thanos-store-aws entrypoint' do
           .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--objstore\.config #{config_option}/))
+    end
+
+    it 'does not include any web configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--web\.external-prefix/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--web\.prefix-header/))
     end
   end
 
@@ -330,7 +335,11 @@ describe 'thanos-store-aws entrypoint' do
     end
   end
 
-  describe 'with web configuration' do
+  fdescribe 'with data directory configuration' do
+    def data_directory
+      '/data'
+    end
+
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -338,11 +347,16 @@ describe 'thanos-store-aws entrypoint' do
           bucket_path: s3_bucket_path,
           object_path: s3_env_file_object_path,
           env: {
-              'THANOS_WEB_EXTERNAL_PREFIX' => '/query',
+              'THANOS_DATA_DIRECTORY' => data_directory,
               'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix',
               'THANOS_OBJECT_STORE_CONFIGURATION' =>
                   object_store_configuration
           })
+
+      execute_command(
+          "mkdir -p #{data_directory}")
+      execute_command(
+          "chown thanos:thanos #{data_directory}")
 
       execute_docker_entrypoint(
           started_indicator: "listening")
@@ -350,16 +364,10 @@ describe 'thanos-store-aws entrypoint' do
 
     after(:all, &:reset_docker_backend)
 
-    it 'uses the provided web external prefix' do
+    it 'uses the provided data directory' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
-              /--web\.external-prefix=\/query/))
-    end
-
-    it 'uses the provided web prefix header' do
-      expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(
-              /--web\.prefix-header=X-Forwarded-Prefix/))
+              /--data-dir=#{Regexp.escape(data_directory)}/))
     end
   end
 
@@ -430,6 +438,39 @@ describe 'thanos-store-aws entrypoint' do
             .to(match(
                 /--objstore\.config-file=#{Regexp.escape(config_file_path)}/))
       end
+    end
+  end
+
+  describe 'with web configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_WEB_EXTERNAL_PREFIX' => '/query',
+              'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided web external prefix' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--web\.external-prefix=\/query/))
+    end
+
+    it 'uses the provided web prefix header' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--web\.prefix-header=X-Forwarded-Prefix/))
     end
   end
 

@@ -54,7 +54,7 @@ if [ -n "${THANOS_GRPC_SERVER_TLS_CLIENT_CA_FILE_PATH}" ]; then
   grpc_server_tls_client_ca_option="--grpc-server-tls-client-ca=${file_path}"
 fi
 
-data_dir_option="--data-dir=/var/opt/thanos"
+data_dir="${THANOS_DATA_DIRECTORY:-/var/opt/thanos}"
 
 objstore_config_option=()
 if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION}" ]; then
@@ -100,7 +100,7 @@ exec /opt/thanos/bin/start.sh store \
     ${grpc_server_tls_key_option} \
     ${grpc_server_tls_client_ca_option} \
     \
-    ${data_dir_option} \
+    --data-dir="${data_dir}" \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
