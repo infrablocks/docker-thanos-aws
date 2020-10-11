@@ -56,11 +56,26 @@ fi
 
 data_dir="${THANOS_DATA_DIRECTORY:-/var/opt/thanos}"
 
-chunk_pool_size="${THANOS_CHUNK_POOL_SIZE:-2GB}"
-sync_block_duration="${THANOS_SYNC_BLOCK_DURATION:-3m}"
-block_sync_concurrency="${THANOS_BLOCK_SYNC_CONCURRENCY:-20}"
-consistency_delay="${THANOS_CONSISTENCY_DELAY:-0s}"
-ignore_deletion_marks_delay="${THANOS_IGNORE_DELETION_MARKS_DELAY:-24h}"
+chunk_pool_size_option=
+if [ -n "${THANOS_CHUNK_POOL_SIZE}" ]; then
+  chunk_pool_size_option="--chunk-pool-size=${THANOS_CHUNK_POOL_SIZE}"
+fi
+sync_block_duration_option=
+if [ -n "${THANOS_SYNC_BLOCK_DURATION}" ]; then
+  sync_block_duration_option="--sync-block-duration=${THANOS_SYNC_BLOCK_DURATION}"
+fi
+block_sync_concurrency_option=
+if [ -n "${THANOS_BLOCK_SYNC_CONCURRENCY}" ]; then
+  block_sync_concurrency_option="--block-sync-concurrency=${THANOS_BLOCK_SYNC_CONCURRENCY}"
+fi
+consistency_delay_option=
+if [ -n "${THANOS_CONSISTENCY_DELAY}" ]; then
+  consistency_delay_option="--consistency-delay=${THANOS_CONSISTENCY_DELAY}"
+fi
+ignore_deletion_marks_delay_option=
+if [ -n "${THANOS_IGNORE_DELETION_MARKS_DELAY}" ]; then
+  ignore_deletion_marks_delay_option="--ignore-deletion-marks-delay=${THANOS_IGNORE_DELETION_MARKS_DELAY}"
+fi
 
 index_cache_size_option=
 if [ -n "${THANOS_INDEX_CACHE_SIZE}" ]; then
@@ -86,6 +101,16 @@ fi
 if [ -n "${THANOS_INDEX_CACHE_CONFIGURATION_FILE_PATH}" ]; then
   file_path="${THANOS_INDEX_CACHE_CONFIGURATION_FILE_PATH}"
   index_cache_config_file_option="--index-cache.config-file=${file_path}"
+fi
+
+store_grpc_series_sample_limit_option=
+if [ -n "${THANOS_STORE_GRPC_SERIES_SAMPLE_LIMIT}" ]; then
+  store_grpc_series_sample_limit_option="--store.grpc.series-sample-limit=${THANOS_STORE_GRPC_SERIES_SAMPLE_LIMIT}"
+fi
+
+store_grpc_series_max_concurrency_option=
+if [ -n "${THANOS_STORE_GRPC_SERIES_MAX_CONCURRENCY}" ]; then
+  store_grpc_series_max_concurrency_option="--store.grpc.series-max-concurrency=${THANOS_STORE_GRPC_SERIES_MAX_CONCURRENCY}"
 fi
 
 objstore_config_option=()
@@ -133,15 +158,18 @@ exec /opt/thanos/bin/start.sh store \
     ${grpc_server_tls_client_ca_option} \
     \
     --data-dir="${data_dir}" \
-    --chunk-pool-size="${chunk_pool_size}" \
-    --sync-block-duration="${sync_block_duration}" \
-    --block-sync-concurrency="${block_sync_concurrency}" \
-    --consistency-delay="${consistency_delay}" \
-    --ignore-deletion-marks-delay="${ignore_deletion_marks_delay}" \
+    ${chunk_pool_size_option} \
+    ${sync_block_duration_option} \
+    ${block_sync_concurrency_option} \
+    ${consistency_delay_option} \
+    ${ignore_deletion_marks_delay_option} \
     \
     ${index_cache_size_option} \
     "${index_cache_config_option[@]}" \
     ${index_cache_config_file_option} \
+    \
+    ${store_grpc_series_sample_limit_option} \
+    ${store_grpc_series_max_concurrency_option} \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \

@@ -91,38 +91,45 @@ describe 'thanos-store-aws entrypoint' do
           .to(match(/--data-dir=\/var\/opt\/thanos/))
     end
 
-    it 'uses a chunk pool size of 2GB' do
+    it 'does not include chunk pool size option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--chunk-pool-size=2GB/))
+          .not_to(match(/--chunk-pool-size/))
     end
 
-    it 'uses a sync block duration of 3 minutes' do
+    it 'does not include sync block duration option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--sync-block-duration=3m/))
+          .not_to(match(/--sync-block-duration/))
     end
 
-    it 'uses a block sync concurrency of 20' do
+    it 'does not include block sync concurrency option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--block-sync-concurrency=20/))
+          .not_to(match(/--block-sync-concurrency/))
     end
 
-    it 'uses a consistency delay of 0 seconds' do
+    it 'does not include consistency delay option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--consistency-delay=0s/))
+          .not_to(match(/--consistency-delay/))
     end
 
-    it 'uses an ignore deletion marks delay of 24 hours' do
+    it 'does not include ignore deletion marks delay option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--ignore-deletion-marks-delay=24h/))
+          .not_to(match(/--ignore-deletion-marks-delay/))
+    end
+
+    it 'does not include store gRPC configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.grpc\.series-sample-limit/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--store\.grpc\.series-max-concurrency/))
     end
 
     it 'does not include index cache configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--index-cache-size/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--index-cache.config-file/))
+          .not_to(match(/--index-cache\.config-file/))
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--index-cache.config/))
+          .not_to(match(/--index-cache\.config/))
     end
 
     it 'uses the provided object store configuration' do
@@ -587,6 +594,39 @@ describe 'thanos-store-aws entrypoint' do
             .to(match(
                 /--index-cache\.config-file=\/index-cache-config.yml/))
       end
+    end
+  end
+
+  describe 'with store gRPC configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_STORE_GRPC_SERIES_SAMPLE_LIMIT' => '20',
+              'THANOS_STORE_GRPC_SERIES_MAX_CONCURRENCY' => '30',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided store gRPC series sample limit' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--store\.grpc\.series-sample-limit=20/))
+    end
+
+    it 'uses the provided store gRPC series max concurrency' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+              /--store\.grpc\.series-max-concurrency=30/))
     end
   end
 
