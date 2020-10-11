@@ -34,7 +34,7 @@ describe 'thanos-store-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  fdescribe 'by default' do
+  describe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -89,6 +89,31 @@ describe 'thanos-store-aws entrypoint' do
     it 'uses a data directory of /var/opt/thanos' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--data-dir=\/var\/opt\/thanos/))
+    end
+
+    it 'uses a chunk pool size of 2GB' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--chunk-pool-size=2GB/))
+    end
+
+    it 'uses a sync block duration of 3 minutes' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--sync-block-duration=3m/))
+    end
+
+    it 'uses a block sync concurrency of 20' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--block-sync-concurrency=20/))
+    end
+
+    it 'uses a consistency delay of 0 seconds' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--consistency-delay=0s/))
+    end
+
+    it 'uses an ignore deletion marks delay of 24 hours' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--ignore-deletion-marks-delay=24h/))
     end
 
     it 'does not include index cache configuration' do
@@ -357,7 +382,6 @@ describe 'thanos-store-aws entrypoint' do
           object_path: s3_env_file_object_path,
           env: {
               'THANOS_DATA_DIRECTORY' => data_directory,
-              'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix',
               'THANOS_OBJECT_STORE_CONFIGURATION' =>
                   object_store_configuration
           })
@@ -380,7 +404,56 @@ describe 'thanos-store-aws entrypoint' do
     end
   end
 
-  fdescribe 'with index cache configuration' do
+    describe 'with top-level configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_CHUNK_POOL_SIZE' => '3GB',
+              'THANOS_SYNC_BLOCK_DURATION' => '5m',
+              'THANOS_BLOCK_SYNC_CONCURRENCY' => '30',
+              'THANOS_CONSISTENCY_DELAY' => '30m',
+              'THANOS_IGNORE_DELETION_MARKS_DELAY' => '48h',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided chunk pool size' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--chunk-pool-size=3GB/))
+    end
+
+    it 'uses the provided sync block duration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--sync-block-duration=5m/))
+    end
+
+    it 'uses the provided block sync concurrency' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--block-sync-concurrency=30/))
+    end
+
+    it 'uses the provided consistency delay' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--consistency-delay=30m/))
+    end
+
+    it 'uses the provided ignore deletion marks delay' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--ignore-deletion-marks-delay=48h/))
+    end
+  end
+
+  describe 'with index cache configuration' do
     def index_cache_configuration
       File.read('spec/fixtures/example-index-cache-configuration.yml')
     end

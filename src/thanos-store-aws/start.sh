@@ -56,6 +56,12 @@ fi
 
 data_dir="${THANOS_DATA_DIRECTORY:-/var/opt/thanos}"
 
+chunk_pool_size="${THANOS_CHUNK_POOL_SIZE:-2GB}"
+sync_block_duration="${THANOS_SYNC_BLOCK_DURATION:-3m}"
+block_sync_concurrency="${THANOS_BLOCK_SYNC_CONCURRENCY:-20}"
+consistency_delay="${THANOS_CONSISTENCY_DELAY:-0s}"
+ignore_deletion_marks_delay="${THANOS_IGNORE_DELETION_MARKS_DELAY:-24h}"
+
 index_cache_size_option=
 if [ -n "${THANOS_INDEX_CACHE_SIZE}" ]; then
   index_cache_size_option="--index-cache-size=${THANOS_INDEX_CACHE_SIZE}"
@@ -127,6 +133,11 @@ exec /opt/thanos/bin/start.sh store \
     ${grpc_server_tls_client_ca_option} \
     \
     --data-dir="${data_dir}" \
+    --chunk-pool-size="${chunk_pool_size}" \
+    --sync-block-duration="${sync_block_duration}" \
+    --block-sync-concurrency="${block_sync_concurrency}" \
+    --consistency-delay="${consistency_delay}" \
+    --ignore-deletion-marks-delay="${ignore_deletion_marks_delay}" \
     \
     ${index_cache_size_option} \
     "${index_cache_config_option[@]}" \
