@@ -91,6 +91,15 @@ describe 'thanos-store-aws entrypoint' do
           .to(match(/--data-dir=\/var\/opt\/thanos/))
     end
 
+    it 'does not include index cache configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--index-cache-size/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--index-cache.config-file/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--index-cache.config/))
+    end
+
     it 'uses the provided object store configuration' do
       config_option=object_store_configuration
           .gsub("\n", " ")
@@ -335,7 +344,7 @@ describe 'thanos-store-aws entrypoint' do
     end
   end
 
-  fdescribe 'with data directory configuration' do
+  describe 'with data directory configuration' do
     def data_directory
       '/data'
     end
@@ -368,6 +377,143 @@ describe 'thanos-store-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
               /--data-dir=#{Regexp.escape(data_directory)}/))
+    end
+  end
+
+  fdescribe 'with index cache configuration' do
+    def index_cache_configuration
+      File.read('spec/fixtures/example-index-cache-configuration.yml')
+    end
+
+    context 'when index cache size provided' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_INDEX_CACHE_SIZE' => '1GB',
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided index cache size' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--index-cache-size=1GB/))
+      end
+    end
+
+    context 'when index cache config provided directly' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_INDEX_CACHE_CONFIGURATION' =>
+                    index_cache_configuration,
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided index cache config' do
+        config_option=index_cache_configuration
+            .gsub("\n", " ")
+            .gsub('"', '')
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--index-cache\.config #{config_option}/))
+      end
+    end
+
+    context 'when passed an object path for index cache config file' do
+      before(:all) do
+        index_cache_config_file_object_path = "#{s3_bucket_path}/index-cache.yml"
+
+        create_object(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: index_cache_config_file_object_path,
+            content: index_cache_configuration)
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_INDEX_CACHE_CONFIGURATION_FILE_OBJECT_PATH' =>
+                    index_cache_config_file_object_path,
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'fetches the specific index cache config file and passes its path' do
+        config_file_listing = command('ls /opt/thanos/conf').stdout
+
+        expect(config_file_listing).to(eq("index-cache.yml\n"))
+
+        config_file_path = '/opt/thanos/conf/index-cache.yml'
+        config_file_contents = command("cat #{config_file_path}").stdout
+
+        expect(config_file_contents).to(eq(index_cache_configuration))
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--index-cache\.config-file=#{Regexp.escape(config_file_path)}/))
+      end
+    end
+
+    context 'when passed a filesystem path for index cache config file' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_INDEX_CACHE_CONFIGURATION_FILE_PATH' =>
+                    '/index-cache-config.yml',
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_command(
+            "echo \"#{index_cache_configuration}\" > /index-cache-config.yml")
+        execute_command(
+            "chown thanos:thanos /index-cache-config.yml")
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided file path as the index cache config path' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(
+                /--index-cache\.config-file=\/index-cache-config.yml/))
+      end
     end
   end
 

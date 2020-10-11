@@ -56,6 +56,32 @@ fi
 
 data_dir="${THANOS_DATA_DIRECTORY:-/var/opt/thanos}"
 
+index_cache_size_option=
+if [ -n "${THANOS_INDEX_CACHE_SIZE}" ]; then
+  index_cache_size_option="--index-cache-size=${THANOS_INDEX_CACHE_SIZE}"
+fi
+
+index_cache_config_option=()
+if [ -n "${THANOS_INDEX_CACHE_CONFIGURATION}" ]; then
+  index_cache_config="${THANOS_INDEX_CACHE_CONFIGURATION}"
+  index_cache_config_option+=("--index-cache.config" "${index_cache_config}")
+fi
+
+index_cache_config_file_option=
+if [ -n "${THANOS_INDEX_CACHE_CONFIGURATION_FILE_OBJECT_PATH}" ]; then
+  default_path=/opt/thanos/conf/index-cache.yml
+  echo "Fetching index cache configuration file."
+  fetch_file_from_s3 \
+    "${AWS_S3_BUCKET_REGION}" \
+    "${THANOS_INDEX_CACHE_CONFIGURATION_FILE_OBJECT_PATH}" \
+    "${default_path}"
+  index_cache_config_file_option="--index-cache.config-file=${default_path}"
+fi
+if [ -n "${THANOS_INDEX_CACHE_CONFIGURATION_FILE_PATH}" ]; then
+  file_path="${THANOS_INDEX_CACHE_CONFIGURATION_FILE_PATH}"
+  index_cache_config_file_option="--index-cache.config-file=${file_path}"
+fi
+
 objstore_config_option=()
 if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION}" ]; then
   objstore_config="${THANOS_OBJECT_STORE_CONFIGURATION}"
@@ -101,6 +127,10 @@ exec /opt/thanos/bin/start.sh store \
     ${grpc_server_tls_client_ca_option} \
     \
     --data-dir="${data_dir}" \
+    \
+    ${index_cache_size_option} \
+    "${index_cache_config_option[@]}" \
+    ${index_cache_config_file_option} \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
