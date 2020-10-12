@@ -38,6 +38,21 @@ if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION_FILE_PATH}" ]; then
   objstore_config_file_option="--objstore.config-file=${file_path}"
 fi
 
+retention_resolution_raw_option=
+if [ -n "${THANOS_RETENTION_RESOLUTION_RAW}" ]; then
+  retention_resolution_raw_option="--retention.resolution-raw=${THANOS_RETENTION_RESOLUTION_RAW}"
+fi
+
+retention_resolution_5m_option=
+if [ -n "${THANOS_RETENTION_RESOLUTION_5M}" ]; then
+  retention_resolution_5m_option="--retention.resolution-5m=${THANOS_RETENTION_RESOLUTION_5M}"
+fi
+
+retention_resolution_1h_option=
+if [ -n "${THANOS_RETENTION_RESOLUTION_1H}" ]; then
+  retention_resolution_1h_option="--retention.resolution-1h=${THANOS_RETENTION_RESOLUTION_1H}"
+fi
+
 selector_relabel_config_option=()
 if [ -n "${THANOS_SELECTOR_RELABEL_CONFIGURATION}" ]; then
   selector_relabel_config="${THANOS_SELECTOR_RELABEL_CONFIGURATION}"
@@ -84,6 +99,10 @@ exec /opt/thanos/bin/start.sh compact \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
+    \
+    ${retention_resolution_raw_option} \
+    ${retention_resolution_5m_option} \
+    ${retention_resolution_1h_option} \
     \
     "${selector_relabel_config_option[@]}" \
     ${selector_relabel_config_file_option} \

@@ -34,7 +34,7 @@ describe 'thanos-compact-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  describe 'by default' do
+  fdescribe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -88,6 +88,15 @@ describe 'thanos-compact-aws entrypoint' do
           .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--objstore\.config #{config_option}/))
+    end
+
+    it 'does not include any retention configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--retention\.resolution-raw/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--retention\.resolution-5m/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--retention\.resolution-1h/))
     end
 
     it 'does not include any selector configuration' do
@@ -268,6 +277,43 @@ describe 'thanos-compact-aws entrypoint' do
             .to(match(
                 /--objstore\.config-file=#{Regexp.escape(config_file_path)}/))
       end
+    end
+  end
+
+  fdescribe 'with retention configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_RETENTION_RESOLUTION_RAW' => '14d',
+              'THANOS_RETENTION_RESOLUTION_5M' => '30d',
+              'THANOS_RETENTION_RESOLUTION_1H' => '90d',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided retention resolution for raw blocks' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--retention\.resolution-raw=14d/))
+    end
+
+    it 'uses the provided retention resolution for 5 minute blocks' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--retention\.resolution-5m=30d/))
+    end
+
+    it 'uses the provided retention resolution for 1 hour blocks' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--retention\.resolution-1h=90d/))
     end
   end
 
