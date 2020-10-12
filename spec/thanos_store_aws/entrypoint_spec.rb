@@ -34,7 +34,7 @@ describe 'thanos-store-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  fdescribe 'by default' do
+  describe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -707,7 +707,7 @@ describe 'thanos-store-aws entrypoint' do
     end
   end
 
-  fdescribe 'with time configuration' do
+  describe 'with time configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,

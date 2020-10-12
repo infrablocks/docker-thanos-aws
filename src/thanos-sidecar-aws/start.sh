@@ -102,8 +102,8 @@ if [[ "$THANOS_SHIPPER_UPLOAD_COMPACTED_ENABLED" = "yes" ]]; then
 fi
 
 min_time_option=
-if [ -n "$THANOS_MIN_TIME" ]; then
-  min_time_option="--min-time=${THANOS_MIN_TIME}"
+if [ -n "$THANOS_MINIMUM_TIME" ]; then
+  min_time_option="--min-time=${THANOS_MINIMUM_TIME}"
 fi
 
 # shellcheck disable=SC2086

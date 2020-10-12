@@ -686,7 +686,7 @@ describe 'thanos-sidecar-aws entrypoint' do
           bucket_path: s3_bucket_path,
           object_path: s3_env_file_object_path,
           env: {
-              'THANOS_MIN_TIME' => '2020-09-22T15:31:29Z'
+              'THANOS_MINIMUM_TIME' => '2020-09-22T15:31:29Z'
           })
 
       execute_docker_entrypoint(
