@@ -133,7 +133,7 @@ describe 'thanos-store-aws entrypoint' do
     end
 
     it 'uses the provided object store configuration' do
-      config_option=object_store_configuration
+      config_option = object_store_configuration
           .gsub("\n", " ")
           .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
@@ -145,6 +145,12 @@ describe 'thanos-store-aws entrypoint' do
           .not_to(match(/--min-time/))
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--max-time/))
+    end
+
+    it 'does not include any selector configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--selector\.relabel-config/))
+      # covers both relabel config options
     end
 
     it 'does not include any web configuration' do
@@ -418,7 +424,7 @@ describe 'thanos-store-aws entrypoint' do
     end
   end
 
-    describe 'with top-level configuration' do
+  describe 'with top-level configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -519,7 +525,7 @@ describe 'thanos-store-aws entrypoint' do
       after(:all, &:reset_docker_backend)
 
       it 'uses the provided index cache config' do
-        config_option=index_cache_configuration
+        config_option = index_cache_configuration
             .gsub("\n", " ")
             .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
@@ -657,7 +663,7 @@ describe 'thanos-store-aws entrypoint' do
       after(:all, &:reset_docker_backend)
 
       it 'passes the provided object store config' do
-        config_option=object_store_configuration
+        config_option = object_store_configuration
             .gsub("\n", " ")
             .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
@@ -735,6 +741,119 @@ describe 'thanos-store-aws entrypoint' do
     it 'uses the provided maximum time' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--max-time=2020-09-23T00:00:00Z/))
+    end
+  end
+
+  describe 'with selector configuration' do
+    def selector_relabel_configuration
+      File.read('spec/fixtures/example-selector-relabel-configuration.yml')
+    end
+
+    context 'for relabelling' do
+      context 'when provided directly' do
+        before(:all) do
+          create_env_file(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: s3_env_file_object_path,
+              env: {
+                  'THANOS_SELECTOR_RELABEL_CONFIGURATION' =>
+                      selector_relabel_configuration,
+                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                      object_store_configuration
+              })
+
+          execute_docker_entrypoint(
+              started_indicator: "listening")
+        end
+
+        after(:all, &:reset_docker_backend)
+
+        it 'uses the provided selector relabel config' do
+          config_option = selector_relabel_configuration
+              .gsub("\n", " ")
+              .gsub('"', '')
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--selector\.relabel-config #{Regexp.escape(config_option)}/))
+        end
+      end
+
+      context 'when passed an object path' do
+        before(:all) do
+          selector_relabel_config_file_object_path = "#{s3_bucket_path}/selector-relabelling.yml"
+
+          create_object(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: selector_relabel_config_file_object_path,
+              content: selector_relabel_configuration)
+          create_env_file(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: s3_env_file_object_path,
+              env: {
+                  'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_OBJECT_PATH' =>
+                      selector_relabel_config_file_object_path,
+                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                      object_store_configuration
+              })
+
+          execute_docker_entrypoint(
+              started_indicator: "listening")
+        end
+
+        after(:all, &:reset_docker_backend)
+
+        it 'fetches the specific selector relabel config file and passes its path' do
+          config_file_listing = command('ls /opt/thanos/conf').stdout
+
+          expect(config_file_listing).to(eq("selector-relabelling.yml\n"))
+
+          config_file_path = '/opt/thanos/conf/selector-relabelling.yml'
+          config_file_contents = command("cat #{config_file_path}").stdout
+
+          expect(config_file_contents).to(eq(selector_relabel_configuration))
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--selector\.relabel-config-file=#{Regexp.escape(config_file_path)}/))
+        end
+      end
+
+      context 'when passed a filesystem path' do
+        before(:all) do
+          create_env_file(
+              endpoint_url: s3_endpoint_url,
+              region: s3_bucket_region,
+              bucket_path: s3_bucket_path,
+              object_path: s3_env_file_object_path,
+              env: {
+                  'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_PATH' =>
+                      '/selector-relabel-config.yml',
+                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                      object_store_configuration
+              })
+
+          execute_command(
+              "echo \"#{selector_relabel_configuration}\" > /selector-relabel-config.yml")
+          execute_command(
+              "chown thanos:thanos /selector-relabel-config.yml")
+
+          execute_docker_entrypoint(
+              started_indicator: "listening")
+        end
+
+        after(:all, &:reset_docker_backend)
+
+        it 'uses the provided file path as the selector relabel config path' do
+          expect(process('/opt/thanos/bin/thanos').args)
+              .to(match(
+                  /--selector\.relabel-config-file=\/selector-relabel-config.yml/))
+        end
+      end
     end
   end
 

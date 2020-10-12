@@ -144,6 +144,27 @@ if [ -n "$THANOS_MAXIMUM_TIME" ]; then
   max_time_option="--max-time=${THANOS_MAXIMUM_TIME}"
 fi
 
+selector_relabel_config_option=()
+if [ -n "${THANOS_SELECTOR_RELABEL_CONFIGURATION}" ]; then
+  selector_relabel_config="${THANOS_SELECTOR_RELABEL_CONFIGURATION}"
+  selector_relabel_config_option+=("--selector.relabel-config" "${selector_relabel_config}")
+fi
+
+selector_relabel_config_file_option=
+if [ -n "${THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_OBJECT_PATH}" ]; then
+  default_path=/opt/thanos/conf/selector-relabelling.yml
+  echo "Fetching selector relabel configuration file."
+  fetch_file_from_s3 \
+    "${AWS_S3_BUCKET_REGION}" \
+    "${THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_OBJECT_PATH}" \
+    "${default_path}"
+  selector_relabel_config_file_option="--selector.relabel-config-file=${default_path}"
+fi
+if [ -n "${THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_PATH}" ]; then
+  file_path="${THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_PATH}"
+  selector_relabel_config_file_option="--selector.relabel-config-file=${file_path}"
+fi
+
 web_external_prefix_option=
 if [ -n "${THANOS_WEB_EXTERNAL_PREFIX}" ]; then
   web_external_prefix_option="--web.external-prefix=${THANOS_WEB_EXTERNAL_PREFIX}"
@@ -186,6 +207,9 @@ exec /opt/thanos/bin/start.sh store \
     \
     ${min_time_option} \
     ${max_time_option} \
+    \
+    "${selector_relabel_config_option[@]}" \
+    ${selector_relabel_config_file_option} \
     \
     ${web_external_prefix_option} \
     ${web_prefix_header_option} \
