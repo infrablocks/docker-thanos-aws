@@ -34,7 +34,7 @@ describe 'thanos-store-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  describe 'by default' do
+  fdescribe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -138,6 +138,13 @@ describe 'thanos-store-aws entrypoint' do
           .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--objstore\.config #{config_option}/))
+    end
+
+    it 'does not include any time configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--min-time/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--max-time/))
     end
 
     it 'does not include any web configuration' do
@@ -697,6 +704,37 @@ describe 'thanos-store-aws entrypoint' do
             .to(match(
                 /--objstore\.config-file=#{Regexp.escape(config_file_path)}/))
       end
+    end
+  end
+
+  fdescribe 'with time configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_MINIMUM_TIME' => '2020-09-22T15:31:29Z',
+              'THANOS_MAXIMUM_TIME' => '2020-09-23T00:00:00Z',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided minimum time' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--min-time=2020-09-22T15:31:29Z/))
+    end
+
+    it 'uses the provided maximum time' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--max-time=2020-09-23T00:00:00Z/))
     end
   end
 

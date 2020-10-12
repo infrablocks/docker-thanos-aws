@@ -134,6 +134,16 @@ if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION_FILE_PATH}" ]; then
   objstore_config_file_option="--objstore.config-file=${file_path}"
 fi
 
+min_time_option=
+if [ -n "$THANOS_MINIMUM_TIME" ]; then
+  min_time_option="--min-time=${THANOS_MINIMUM_TIME}"
+fi
+
+max_time_option=
+if [ -n "$THANOS_MAXIMUM_TIME" ]; then
+  max_time_option="--max-time=${THANOS_MAXIMUM_TIME}"
+fi
+
 web_external_prefix_option=
 if [ -n "${THANOS_WEB_EXTERNAL_PREFIX}" ]; then
   web_external_prefix_option="--web.external-prefix=${THANOS_WEB_EXTERNAL_PREFIX}"
@@ -173,6 +183,9 @@ exec /opt/thanos/bin/start.sh store \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
+    \
+    ${min_time_option} \
+    ${max_time_option} \
     \
     ${web_external_prefix_option} \
     ${web_prefix_header_option} \
