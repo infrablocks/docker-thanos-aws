@@ -82,6 +82,16 @@ describe 'thanos-compact-aws entrypoint' do
           .not_to(match(/--consistency-delay/))
     end
 
+    it 'does not include delete delay option' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--delete-delay/))
+    end
+
+    it 'does not include bucket web label option' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--bucket-web-label/))
+    end
+
     it 'uses the provided object store configuration' do
       config_option = object_store_configuration
           .gsub("\n", " ")
@@ -179,7 +189,7 @@ describe 'thanos-compact-aws entrypoint' do
     end
   end
 
-  describe 'with top-level configuration' do
+  fdescribe 'with top-level configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -189,6 +199,8 @@ describe 'thanos-compact-aws entrypoint' do
           env: {
               'THANOS_BLOCK_SYNC_CONCURRENCY' => '30',
               'THANOS_CONSISTENCY_DELAY' => '30m',
+              'THANOS_DELETE_DELAY' => '36h',
+              'THANOS_BUCKET_WEB_LABEL' => 'title',
               'THANOS_OBJECT_STORE_CONFIGURATION' =>
                   object_store_configuration
           })
@@ -207,6 +219,16 @@ describe 'thanos-compact-aws entrypoint' do
     it 'uses the provided consistency delay' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--consistency-delay=30m/))
+    end
+
+    it 'uses the provided delete delay' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--delete-delay=36h/))
+    end
+
+    it 'uses the provided bucket web label' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--bucket-web-label=title/))
     end
   end
 
@@ -280,7 +302,7 @@ describe 'thanos-compact-aws entrypoint' do
     end
   end
 
-  fdescribe 'with retention configuration' do
+  describe 'with retention configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,

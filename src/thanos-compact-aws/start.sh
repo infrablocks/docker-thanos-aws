@@ -16,6 +16,14 @@ consistency_delay_option=
 if [ -n "${THANOS_CONSISTENCY_DELAY}" ]; then
   consistency_delay_option="--consistency-delay=${THANOS_CONSISTENCY_DELAY}"
 fi
+delete_delay_option=
+if [ -n "${THANOS_DELETE_DELAY}" ]; then
+  delete_delay_option="--delete-delay=${THANOS_DELETE_DELAY}"
+fi
+bucket_web_label_option=
+if [ -n "${THANOS_BUCKET_WEB_LABEL}" ]; then
+  bucket_web_label_option="--bucket-web-label=${THANOS_BUCKET_WEB_LABEL}"
+fi
 
 objstore_config_option=()
 if [ -n "${THANOS_OBJECT_STORE_CONFIGURATION}" ]; then
@@ -96,6 +104,8 @@ exec /opt/thanos/bin/start.sh compact \
     --data-dir="${data_dir}" \
     ${block_sync_concurrency_option} \
     ${consistency_delay_option} \
+    ${delete_delay_option} \
+    ${bucket_web_label_option} \
     \
     "${objstore_config_option[@]}" \
     ${objstore_config_file_option} \
