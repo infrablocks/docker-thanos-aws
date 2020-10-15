@@ -57,6 +57,11 @@ describe 'thanos-compact-aws entrypoint' do
       expect(process('/opt/thanos/bin/thanos').args).to(match(/compact/))
     end
 
+    it 'runs as a daemon' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--wait/))
+    end
+
     it 'listens on port 10902 on all interfaces for HTTP traffic' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--http-address=0.0.0.0:10902/))
@@ -120,6 +125,57 @@ describe 'thanos-compact-aws entrypoint' do
           .not_to(match(/--web\.external-prefix/))
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--web\.prefix-header/))
+    end
+  end
+
+  fdescribe 'with wait configuration' do
+    context 'when disabled' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_WAIT_ENABLED' => 'no',
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'exits the process' do
+        expect(process('/opt/thanos/bin/thanos')).not_to(be_running)
+      end
+    end
+
+    context 'for wait interval' do
+      before(:all) do
+        create_env_file(
+            endpoint_url: s3_endpoint_url,
+            region: s3_bucket_region,
+            bucket_path: s3_bucket_path,
+            object_path: s3_env_file_object_path,
+            env: {
+                'THANOS_WAIT_INTERVAL' => '1m',
+                'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                    object_store_configuration
+            })
+
+        execute_docker_entrypoint(
+            started_indicator: "listening")
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided wait interval' do
+        expect(process('/opt/thanos/bin/thanos').args)
+            .to(match(/--wait-interval=1m/))
+      end
     end
   end
 
@@ -189,7 +245,7 @@ describe 'thanos-compact-aws entrypoint' do
     end
   end
 
-  fdescribe 'with top-level configuration' do
+  describe 'with top-level configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,

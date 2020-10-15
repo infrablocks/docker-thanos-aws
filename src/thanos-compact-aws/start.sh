@@ -3,6 +3,15 @@
 [ "$TRACE" = "yes" ] && set -x
 set -e
 
+wait_option="--wait"
+if [[ "$THANOS_WAIT_ENABLED" = "no" ]]; then
+  wait_option=
+fi
+wait_interval_option=
+if [ -n "${THANOS_WAIT_INTERVAL}" ]; then
+  wait_interval_option="--wait-interval=${THANOS_WAIT_INTERVAL}"
+fi
+
 http_address="${THANOS_HTTP_ADDRESS:-0.0.0.0:10902}"
 http_grace_period="${THANOS_HTTP_GRACE_PERIOD:-2m}"
 
@@ -96,7 +105,8 @@ fi
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh compact \
     \
-    --wait \
+    ${wait_option} \
+    ${wait_interval_option} \
     \
     --http-address="${http_address}" \
     --http-grace-period="${http_grace_period}" \
