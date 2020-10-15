@@ -34,7 +34,7 @@ describe 'thanos-compact-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  fdescribe 'by default' do
+  describe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -114,6 +114,16 @@ describe 'thanos-compact-aws entrypoint' do
           .not_to(match(/--retention\.resolution-1h/))
     end
 
+    it 'does not include any downsampling configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--downsampling\.disable/))
+    end
+
+    it 'does not include any compact configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--compact\.concurrency/))
+    end
+
     it 'does not include any selector configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--selector\.relabel-config/))
@@ -128,7 +138,7 @@ describe 'thanos-compact-aws entrypoint' do
     end
   end
 
-  fdescribe 'with wait configuration' do
+  describe 'with wait configuration' do
     context 'when disabled' do
       before(:all) do
         create_env_file(
@@ -392,6 +402,56 @@ describe 'thanos-compact-aws entrypoint' do
     it 'uses the provided retention resolution for 1 hour blocks' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--retention\.resolution-1h=90d/))
+    end
+  end
+
+  describe 'with downsampling configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_DOWNSAMPLING_ENABLED' => 'no',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'disables downsampling' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--downsampling\.disable/))
+    end
+  end
+
+  describe 'with compact configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_COMPACT_CONCURRENCY' => '5',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided compact concurrency' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--compact\.concurrency=5/))
     end
   end
 
