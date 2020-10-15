@@ -119,6 +119,11 @@ describe 'thanos-compact-aws entrypoint' do
           .not_to(match(/--downsampling\.disable/))
     end
 
+    it 'does not include any block viewer configuration' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .not_to(match(/--block-viewer\.global\.sync-block-interval/))
+    end
+
     it 'does not include any compact configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
           .not_to(match(/--compact\.concurrency/))
@@ -427,6 +432,31 @@ describe 'thanos-compact-aws entrypoint' do
     it 'disables downsampling' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--downsampling\.disable/))
+    end
+  end
+
+  describe 'with block viewer configuration' do
+    before(:all) do
+      create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+              'THANOS_BLOCK_VIEWER_GLOBAL_SYNC_BLOCK_INTERVAL' => '5m',
+              'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          })
+
+      execute_docker_entrypoint(
+          started_indicator: "listening")
+    end
+
+    after(:all, &:reset_docker_backend)
+
+    it 'uses the provided block viewer global sync block interval' do
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--block-viewer\.global\.sync-block-interval=5m/))
     end
   end
 

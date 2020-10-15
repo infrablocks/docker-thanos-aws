@@ -80,6 +80,11 @@ if [ -n "${THANOS_COMPACT_CONCURRENCY}" ]; then
   compact_concurrency_option="--compact.concurrency=${THANOS_COMPACT_CONCURRENCY}"
 fi
 
+block_viewer_global_sync_block_interval_option=
+if [ -n "${THANOS_BLOCK_VIEWER_GLOBAL_SYNC_BLOCK_INTERVAL}" ]; then
+  block_viewer_global_sync_block_interval_option="--block-viewer.global.sync-block-interval=${THANOS_BLOCK_VIEWER_GLOBAL_SYNC_BLOCK_INTERVAL}"
+fi
+
 selector_relabel_config_option=()
 if [ -n "${THANOS_SELECTOR_RELABEL_CONFIGURATION}" ]; then
   selector_relabel_config="${THANOS_SELECTOR_RELABEL_CONFIGURATION}"
@@ -135,6 +140,8 @@ exec /opt/thanos/bin/start.sh compact \
     ${retention_resolution_1h_option} \
     \
     ${downsampling_disable_option} \
+    \
+    ${block_viewer_global_sync_block_interval_option} \
     \
     ${compact_concurrency_option} \
     \
