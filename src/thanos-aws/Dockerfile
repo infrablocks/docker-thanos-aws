@@ -1,4 +1,4 @@
-FROM infrablocks/alpine-aws-s3-config:0.21.0-rc.6
+FROM infrablocks/alpine-aws-s3-config:0.21.0-rc.7
 
 ENV THANOS_VERSION 0.15.0
 
