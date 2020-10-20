@@ -30,7 +30,7 @@ describe 'thanos-sidecar-aws entrypoint' do
     set :docker_container_create_options, extra
   end
 
-  describe 'by default' do
+  fdescribe 'by default' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -418,7 +418,7 @@ describe 'thanos-sidecar-aws entrypoint' do
     end
   end
 
-  describe 'with tsdb configuration' do
+  fdescribe 'with tsdb configuration' do
     before(:all) do
       create_env_file(
           endpoint_url: s3_endpoint_url,
@@ -429,6 +429,8 @@ describe 'thanos-sidecar-aws entrypoint' do
               'THANOS_TSDB_PATH' => '/data'
           })
 
+      execute_command('mkdir /data')
+
       execute_docker_entrypoint(
           started_indicator: "listening")
     end
@@ -438,6 +440,11 @@ describe 'thanos-sidecar-aws entrypoint' do
     it 'uses the provided TSDB path' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--tsdb\.path=\/data/))
+    end
+
+    it 'changes the ownership of the TSDB path to the thanos user and group' do
+      expect(file('/data')).to(be_owned_by('thanos'))
+      expect(file('/data')).to(be_grouped_into('thanos'))
     end
   end
 
