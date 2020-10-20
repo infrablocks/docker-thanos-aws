@@ -106,10 +106,6 @@ if [ -n "$THANOS_MINIMUM_TIME" ]; then
   min_time_option="--min-time=${THANOS_MINIMUM_TIME}"
 fi
 
-if [[ -d "$tsdb_path" && "$(stat -c %u "$tsdb_path")" != "$(id -u thanos)" ]]; then
-  chown thanos:thanos "$tsdb_path"
-fi
-
 # shellcheck disable=SC2086
 exec /opt/thanos/bin/start.sh sidecar \
     --http-address="${http_address}" \

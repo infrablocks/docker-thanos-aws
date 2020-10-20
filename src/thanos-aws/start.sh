@@ -29,7 +29,7 @@ log_format="${THANOS_LOG_FORMAT:-json}"
 
 echo "Running thanos."
 # shellcheck disable=SC2086
-exec su-exec thanos:thanos /opt/thanos/bin/thanos \
+exec /opt/thanos/bin/thanos \
     --log.level="${log_level}" \
     --log.format="${log_format}" \
     \

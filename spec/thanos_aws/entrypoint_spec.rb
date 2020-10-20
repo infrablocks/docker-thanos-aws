@@ -64,14 +64,14 @@ describe 'thanos-aws entrypoint' do
           .not_to(match(/--tracing\.config/))
     end
 
-    it 'runs with the thanos user' do
+    it 'runs with the root user' do
       expect(process('/opt/thanos/bin/thanos').user)
-          .to(eq('thanos'))
+          .to(eq('root'))
     end
 
-    it 'runs with the thanos group' do
+    it 'runs with the root group' do
       expect(process('/opt/thanos/bin/thanos').group)
-          .to(eq('thanos'))
+          .to(eq('root'))
     end
   end
 
