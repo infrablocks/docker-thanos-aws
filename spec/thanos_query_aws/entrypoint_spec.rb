@@ -665,7 +665,7 @@ describe 'thanos-query-aws entrypoint' do
               'THANOS_QUERY_MAX_CONCURRENT' => '30',
               'THANOS_QUERY_LOOKBACK_DELTA' => '10m',
               'THANOS_QUERY_MAX_CONCURRENT_SELECT' => '8',
-              'THANOS_QUERY_REPLICA_LABEL' => 'instance',
+              'THANOS_QUERY_REPLICA_LABELS' => 'instance,region',
               'THANOS_QUERY_AUTO_DOWNSAMPLING_ENABLED' => 'yes',
               'THANOS_QUERY_PARTIAL_RESPONSE_ENABLED' => 'yes',
               'THANOS_QUERY_DEFAULT_EVALUATION_INTERVAL' => '2m',
@@ -700,6 +700,8 @@ describe 'thanos-query-aws entrypoint' do
     it 'uses the provided query replica label' do
       expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--query\.replica-label=instance/))
+      expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(/--query\.replica-label=region/))
     end
 
     it 'enables query auto downsampling' do

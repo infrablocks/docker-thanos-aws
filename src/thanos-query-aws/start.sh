@@ -148,11 +148,10 @@ if [ -n "${THANOS_QUERY_MAX_CONCURRENT_SELECT}" ]; then
   query_max_concurrent_select_option="--query.max-concurrent-select=${select}"
 fi
 
-query_replica_label_option=
-if [ -n "${THANOS_QUERY_REPLICA_LABEL}" ]; then
-  label="${THANOS_QUERY_REPLICA_LABEL}"
-  query_replica_label_option="--query.replica-label=${label}"
-fi
+query_replica_label_options=
+for query_replica_label in ${THANOS_QUERY_REPLICA_LABELS//,/ }; do
+  query_replica_label_options+=("--query.replica-label=${query_replica_label}")
+done
 
 query_auto_downsampling_option=
 if [[ "$THANOS_QUERY_AUTO_DOWNSAMPLING_ENABLED" = "yes" ]]; then
@@ -261,7 +260,7 @@ exec /opt/thanos/bin/start.sh query \
     ${query_max_concurrent_option} \
     ${query_lookback_delta_option} \
     ${query_max_concurrent_select_option} \
-    ${query_replica_label_option} \
+    "${query_replica_label_options[@]}" \
     ${query_auto_downsampling_option} \
     ${query_partial_response_option} \
     ${query_default_evaluation_interval_option} \
