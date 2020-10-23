@@ -148,7 +148,7 @@ if [ -n "${THANOS_QUERY_MAX_CONCURRENT_SELECT}" ]; then
   query_max_concurrent_select_option="--query.max-concurrent-select=${select}"
 fi
 
-query_replica_label_options=
+query_replica_label_options=()
 for query_replica_label in ${THANOS_QUERY_REPLICA_LABELS//,/ }; do
   query_replica_label_options+=("--query.replica-label=${query_replica_label}")
 done
