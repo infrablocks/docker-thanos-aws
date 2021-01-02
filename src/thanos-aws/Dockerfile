@@ -6,7 +6,8 @@ RUN apk \
     --verbose \
     --no-cache \
     add \
-        su-exec
+        su-exec \
+        musl
 
 RUN addgroup -S thanos && \
     adduser -S -G thanos thanos
