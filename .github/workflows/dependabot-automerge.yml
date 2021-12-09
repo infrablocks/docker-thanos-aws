@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
-        - name: Sleep for 30s
-          uses: juliangruber/sleep-action@v1
-          with:
-            time: 30s
+      - name: Sleep for 30s
+        uses: juliangruber/sleep-action@v1
+        with:
+          time: 30s
       - name: Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v1.1.1
