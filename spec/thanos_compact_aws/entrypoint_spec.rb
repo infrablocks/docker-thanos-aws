@@ -680,7 +680,7 @@ describe 'thanos-compact-aws entrypoint' do
         "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &")
 
     begin
-      Octopoller.poll(timeout: 5) do
+      Octopoller.poll(timeout: 15) do
         docker_entrypoint_log = command("cat #{logfile_path}").stdout
         docker_entrypoint_log =~ /#{opts[:started_indicator]}/ ?
             docker_entrypoint_log :
