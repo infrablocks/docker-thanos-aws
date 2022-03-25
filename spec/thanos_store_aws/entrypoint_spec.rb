@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-describe 'thanos-store-aws entrypoint', focus: true do
+describe 'thanos-store-aws entrypoint' do
   def metadata_service_url
     'http://metadata:1338'
   end
@@ -178,8 +178,8 @@ describe 'thanos-store-aws entrypoint', focus: true do
 
     it 'uses the provided object store configuration' do
       config_option = object_store_configuration
-                        .gsub("\n", ' ')
-                        .gsub('"', '')
+                      .gsub("\n", ' ')
+                      .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
         .to(match(/--objstore\.config #{config_option}/))
     end
@@ -592,8 +592,8 @@ describe 'thanos-store-aws entrypoint', focus: true do
 
       it 'uses the provided index cache config' do
         config_option = index_cache_configuration
-                          .gsub("\n", ' ')
-                          .gsub('"', '')
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
                 /--index-cache\.config #{config_option}/
@@ -753,8 +753,8 @@ describe 'thanos-store-aws entrypoint', focus: true do
 
       it 'passes the provided object store config' do
         config_option = object_store_configuration
-                          .gsub("\n", ' ')
-                          .gsub('"', '')
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--objstore\.config #{config_option}/))
       end
@@ -874,8 +874,8 @@ describe 'thanos-store-aws entrypoint', focus: true do
 
       it 'uses the provided selector relabel config' do
         config_option = selector_relabel_configuration
-                          .gsub("\n", ' ')
-                          .gsub('"', '')
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
                 /--selector\.relabel-config #{Regexp.escape(config_option)}/
