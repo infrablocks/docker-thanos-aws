@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe 'image' do
   image = 'thanos-aws:latest'
   extra = {
-      'Entrypoint' => '/bin/sh',
+    'Entrypoint' => '/bin/sh'
   }
 
   before(:all) do
@@ -16,11 +18,14 @@ describe 'image' do
 
   it 'puts the thanos user in the thanos group' do
     expect(user('thanos'))
-        .to(belong_to_primary_group('thanos'))
+      .to(belong_to_primary_group('thanos'))
   end
 
-  it 'has the correct ownership on the thanos directory' do
+  it 'has the correct owning user on the thanos directory' do
     expect(file('/opt/thanos')).to(be_owned_by('thanos'))
+  end
+
+  it 'has the correct owning group on the thanos directory' do
     expect(file('/opt/thanos')).to(be_grouped_into('thanos'))
   end
 

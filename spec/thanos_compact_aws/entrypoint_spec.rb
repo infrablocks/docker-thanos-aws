@@ -1,27 +1,51 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe 'thanos-compact-aws entrypoint' do
-  metadata_service_url = 'http://metadata:1338'
-  s3_endpoint_url = 'http://s3:4566'
-  s3_bucket_region = 'us-east-1'
-  s3_bucket_path = 's3://bucket'
-  s3_env_file_object_path = 's3://bucket/env-file.env'
+  def metadata_service_url
+    'http://metadata:1338'
+  end
 
-  environment = {
+  def s3_endpoint_url
+    'http://s3:4566'
+  end
+
+  def s3_bucket_region
+    'us-east-1'
+  end
+
+  def s3_bucket_path
+    's3://bucket'
+  end
+
+  def s3_env_file_object_path
+    's3://bucket/env-file.env'
+  end
+
+  def environment
+    {
       'AWS_METADATA_SERVICE_URL' => metadata_service_url,
-      'AWS_ACCESS_KEY_ID' => "...",
-      'AWS_SECRET_ACCESS_KEY' => "...",
+      'AWS_ACCESS_KEY_ID' => '...',
+      'AWS_SECRET_ACCESS_KEY' => '...',
       'AWS_S3_ENDPOINT_URL' => s3_endpoint_url,
       'AWS_S3_BUCKET_REGION' => s3_bucket_region,
       'AWS_S3_ENV_FILE_OBJECT_PATH' => s3_env_file_object_path
-  }
-  image = 'thanos-compact-aws:latest'
-  extra = {
+    }
+  end
+
+  def image
+    'thanos-compact-aws:latest'
+  end
+
+  def extra
+    {
       'Entrypoint' => '/bin/sh',
       'HostConfig' => {
-          'NetworkMode' => 'docker_thanos_aws_test_default'
+        'NetworkMode' => 'docker_thanos_aws_test_default'
       }
-  }
+    }
+  end
 
   def object_store_configuration
     File.read('spec/fixtures/example-object-store-configuration.yml')
@@ -37,109 +61,123 @@ describe 'thanos-compact-aws entrypoint' do
   describe 'by default' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
-    it 'runs thanos compact' do
+    it 'runs thanos' do
       expect(process('/opt/thanos/bin/thanos')).to(be_running)
+    end
+
+    it 'runs the thanos compact subcommand' do
       expect(process('/opt/thanos/bin/thanos').args).to(match(/compact/))
     end
 
     it 'runs as a daemon' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--wait/))
+        .to(match(/--wait/))
     end
 
     it 'listens on port 10902 on all interfaces for HTTP traffic' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--http-address=0.0.0.0:10902/))
+        .to(match(/--http-address=0.0.0.0:10902/))
     end
 
     it 'uses an HTTP grace period of 2 minutes' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--http-grace-period=2m/))
+        .to(match(/--http-grace-period=2m/))
     end
 
     it 'uses a data directory of /var/opt/thanos' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--data-dir=\/var\/opt\/thanos/))
+        .to(match(%r{--data-dir=/var/opt/thanos}))
     end
 
     it 'does not include block sync concurrency option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--block-sync-concurrency/))
+        .not_to(match(/--block-sync-concurrency/))
     end
 
     it 'does not include consistency delay option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--consistency-delay/))
+        .not_to(match(/--consistency-delay/))
     end
 
     it 'does not include delete delay option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--delete-delay/))
+        .not_to(match(/--delete-delay/))
     end
 
     it 'does not include bucket web label option' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--bucket-web-label/))
+        .not_to(match(/--bucket-web-label/))
     end
 
     it 'uses the provided object store configuration' do
       config_option = object_store_configuration
-          .gsub("\n", " ")
-          .gsub('"', '')
+                      .gsub("\n", ' ')
+                      .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--objstore\.config #{config_option}/))
+        .to(match(/--objstore\.config #{config_option}/))
     end
 
-    it 'does not include any retention configuration' do
+    it 'does not include retention resolution raw configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--retention\.resolution-raw/))
+        .not_to(match(/--retention\.resolution-raw/))
+    end
+
+    it 'does not include retention resolution 5 minute configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--retention\.resolution-5m/))
+        .not_to(match(/--retention\.resolution-5m/))
+    end
+
+    it 'does not include retention resolution 1 hour configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--retention\.resolution-1h/))
+        .not_to(match(/--retention\.resolution-1h/))
     end
 
     it 'does not include any downsampling configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--downsampling\.disable/))
+        .not_to(match(/--downsampling\.disable/))
     end
 
     it 'does not include any block viewer configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--block-viewer\.global\.sync-block-interval/))
+        .not_to(match(/--block-viewer\.global\.sync-block-interval/))
     end
 
     it 'does not include any compact configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--compact\.concurrency/))
+        .not_to(match(/--compact\.concurrency/))
     end
 
     it 'does not include any selector configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--selector\.relabel-config/))
+        .not_to(match(/--selector\.relabel-config/))
       # covers both relabel config options
     end
 
-    it 'does not include any web configuration' do
+    it 'does not include web external prefix configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web\.external-prefix/))
+        .not_to(match(/--web\.external-prefix/))
+    end
+
+    it 'does not include web prefix header configuration' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .not_to(match(/--web\.prefix-header/))
+        .not_to(match(/--web\.prefix-header/))
     end
   end
 
@@ -147,18 +185,20 @@ describe 'thanos-compact-aws entrypoint' do
     context 'when disabled' do
       before(:all) do
         create_env_file(
-            endpoint_url: s3_endpoint_url,
-            region: s3_bucket_region,
-            bucket_path: s3_bucket_path,
-            object_path: s3_env_file_object_path,
-            env: {
-                'THANOS_WAIT_ENABLED' => 'no',
-                'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                    object_store_configuration
-            })
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_WAIT_ENABLED' => 'no',
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
 
         execute_docker_entrypoint(
-            started_indicator: "listening")
+          started_indicator: 'listening'
+        )
       end
 
       after(:all, &:reset_docker_backend)
@@ -168,28 +208,30 @@ describe 'thanos-compact-aws entrypoint' do
       end
     end
 
-    context 'for wait interval' do
+    context 'when wait interval supplied' do
       before(:all) do
         create_env_file(
-            endpoint_url: s3_endpoint_url,
-            region: s3_bucket_region,
-            bucket_path: s3_bucket_path,
-            object_path: s3_env_file_object_path,
-            env: {
-                'THANOS_WAIT_INTERVAL' => '1m',
-                'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                    object_store_configuration
-            })
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_WAIT_INTERVAL' => '1m',
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
 
         execute_docker_entrypoint(
-            started_indicator: "listening")
+          started_indicator: 'listening'
+        )
       end
 
       after(:all, &:reset_docker_backend)
 
       it 'uses the provided wait interval' do
         expect(process('/opt/thanos/bin/thanos').args)
-            .to(match(/--wait-interval=1m/))
+          .to(match(/--wait-interval=1m/))
       end
     end
   end
@@ -197,31 +239,33 @@ describe 'thanos-compact-aws entrypoint' do
   describe 'with HTTP configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_HTTP_ADDRESS' => '0.0.0.0:11902',
-              'THANOS_HTTP_GRACE_PERIOD' => '4m',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_HTTP_ADDRESS' => '0.0.0.0:11902',
+          'THANOS_HTTP_GRACE_PERIOD' => '4m',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided HTTP address' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--http-address=0.0.0.0:11902/))
+        .to(match(/--http-address=0.0.0.0:11902/))
     end
 
     it 'uses the provided HTTP grace period' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--http-grace-period=4m/))
+        .to(match(/--http-grace-period=4m/))
     end
   end
 
@@ -232,74 +276,81 @@ describe 'thanos-compact-aws entrypoint' do
 
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_DATA_DIRECTORY' => data_directory,
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_DATA_DIRECTORY' => data_directory,
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_command(
-          "mkdir -p #{data_directory}")
+        "mkdir -p #{data_directory}"
+      )
       execute_command(
-          "chown thanos:thanos #{data_directory}")
+        "chown thanos:thanos #{data_directory}"
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided data directory' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(
-              /--data-dir=#{Regexp.escape(data_directory)}/))
+        .to(match(
+              /--data-dir=#{Regexp.escape(data_directory)}/
+            ))
     end
   end
 
   describe 'with top-level configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_BLOCK_SYNC_CONCURRENCY' => '30',
-              'THANOS_CONSISTENCY_DELAY' => '30m',
-              'THANOS_DELETE_DELAY' => '36h',
-              'THANOS_BUCKET_WEB_LABEL' => 'title',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_BLOCK_SYNC_CONCURRENCY' => '30',
+          'THANOS_CONSISTENCY_DELAY' => '30m',
+          'THANOS_DELETE_DELAY' => '36h',
+          'THANOS_BUCKET_WEB_LABEL' => 'title',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided block sync concurrency' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--block-sync-concurrency=30/))
+        .to(match(/--block-sync-concurrency=30/))
     end
 
     it 'uses the provided consistency delay' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--consistency-delay=30m/))
+        .to(match(/--consistency-delay=30m/))
     end
 
     it 'uses the provided delete delay' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--delete-delay=36h/))
+        .to(match(/--delete-delay=36h/))
     end
 
     it 'uses the provided bucket web label' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--bucket-web-label=title/))
+        .to(match(/--bucket-web-label=title/))
     end
   end
 
@@ -307,27 +358,29 @@ describe 'thanos-compact-aws entrypoint' do
     context 'when passed directly' do
       before(:all) do
         create_env_file(
-            endpoint_url: s3_endpoint_url,
-            region: s3_bucket_region,
-            bucket_path: s3_bucket_path,
-            object_path: s3_env_file_object_path,
-            env: {
-                'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                    object_store_configuration
-            })
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
 
         execute_docker_entrypoint(
-            started_indicator: "listening")
+          started_indicator: 'listening'
+        )
       end
 
       after(:all, &:reset_docker_backend)
 
       it 'passes the provided object store config' do
         config_option = object_store_configuration
-            .gsub("\n", " ")
-            .gsub('"', '')
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
-            .to(match(/--objstore\.config #{config_option}/))
+          .to(match(/--objstore\.config #{config_option}/))
       end
     end
 
@@ -336,39 +389,50 @@ describe 'thanos-compact-aws entrypoint' do
         object_store_config_file_object_path = "#{s3_bucket_path}/objstore.yml"
 
         create_object(
-            endpoint_url: s3_endpoint_url,
-            region: s3_bucket_region,
-            bucket_path: s3_bucket_path,
-            object_path: object_store_config_file_object_path,
-            content: object_store_configuration)
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: object_store_config_file_object_path,
+          content: object_store_configuration
+        )
         create_env_file(
-            endpoint_url: s3_endpoint_url,
-            region: s3_bucket_region,
-            bucket_path: s3_bucket_path,
-            object_path: s3_env_file_object_path,
-            env: {
-                'THANOS_OBJECT_STORE_CONFIGURATION_FILE_OBJECT_PATH' =>
-                    object_store_config_file_object_path
-            })
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_OBJECT_STORE_CONFIGURATION_FILE_OBJECT_PATH' =>
+                  object_store_config_file_object_path
+          }
+        )
 
         execute_docker_entrypoint(
-            started_indicator: "listening")
+          started_indicator: 'listening'
+        )
       end
 
       after(:all, &:reset_docker_backend)
 
-      it 'fetches the specific object store config file and passes its path' do
+      it 'fetches the specified object store config file' do
         config_file_listing = command('ls /opt/thanos/conf').stdout
 
         expect(config_file_listing).to(eq("objstore.yml\n"))
+      end
 
+      it 'fetches the correct object store config file contents' do
         config_file_path = '/opt/thanos/conf/objstore.yml'
         config_file_contents = command("cat #{config_file_path}").stdout
 
         expect(config_file_contents).to(eq(object_store_configuration))
+      end
+
+      it 'passes the specified object store config file path' do
+        config_file_path = '/opt/thanos/conf/objstore.yml'
+
         expect(process('/opt/thanos/bin/thanos').args)
-            .to(match(
-                /--objstore\.config-file=#{Regexp.escape(config_file_path)}/))
+          .to(match(
+                /--objstore\.config-file=#{Regexp.escape(config_file_path)}/
+              ))
       end
     end
   end
@@ -376,112 +440,120 @@ describe 'thanos-compact-aws entrypoint' do
   describe 'with retention configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_RETENTION_RESOLUTION_RAW' => '14d',
-              'THANOS_RETENTION_RESOLUTION_5M' => '30d',
-              'THANOS_RETENTION_RESOLUTION_1H' => '90d',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_RETENTION_RESOLUTION_RAW' => '14d',
+          'THANOS_RETENTION_RESOLUTION_5M' => '30d',
+          'THANOS_RETENTION_RESOLUTION_1H' => '90d',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided retention resolution for raw blocks' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--retention\.resolution-raw=14d/))
+        .to(match(/--retention\.resolution-raw=14d/))
     end
 
     it 'uses the provided retention resolution for 5 minute blocks' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--retention\.resolution-5m=30d/))
+        .to(match(/--retention\.resolution-5m=30d/))
     end
 
     it 'uses the provided retention resolution for 1 hour blocks' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--retention\.resolution-1h=90d/))
+        .to(match(/--retention\.resolution-1h=90d/))
     end
   end
 
   describe 'with downsampling configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_DOWNSAMPLING_ENABLED' => 'no',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_DOWNSAMPLING_ENABLED' => 'no',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'disables downsampling' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--downsampling\.disable/))
+        .to(match(/--downsampling\.disable/))
     end
   end
 
   describe 'with block viewer configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_BLOCK_VIEWER_GLOBAL_SYNC_BLOCK_INTERVAL' => '5m',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_BLOCK_VIEWER_GLOBAL_SYNC_BLOCK_INTERVAL' => '5m',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided block viewer global sync block interval' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--block-viewer\.global\.sync-block-interval=5m/))
+        .to(match(/--block-viewer\.global\.sync-block-interval=5m/))
     end
   end
 
   describe 'with compact configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_COMPACT_CONCURRENCY' => '5',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_COMPACT_CONCURRENCY' => '5',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided compact concurrency' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(/--compact\.concurrency=5/))
+        .to(match(/--compact\.concurrency=5/))
     end
   end
 
@@ -490,110 +562,130 @@ describe 'thanos-compact-aws entrypoint' do
       File.read('spec/fixtures/example-selector-relabel-configuration.yml')
     end
 
-    context 'for relabelling' do
-      context 'when provided directly' do
-        before(:all) do
-          create_env_file(
-              endpoint_url: s3_endpoint_url,
-              region: s3_bucket_region,
-              bucket_path: s3_bucket_path,
-              object_path: s3_env_file_object_path,
-              env: {
-                  'THANOS_SELECTOR_RELABEL_CONFIGURATION' =>
-                      selector_relabel_configuration,
-                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                      object_store_configuration
-              })
+    context 'when relabelling provided directly' do
+      before(:all) do
+        create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_SELECTOR_RELABEL_CONFIGURATION' =>
+                  selector_relabel_configuration,
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
 
-          execute_docker_entrypoint(
-              started_indicator: "listening")
-        end
-
-        after(:all, &:reset_docker_backend)
-
-        it 'uses the provided selector relabel config' do
-          config_option = selector_relabel_configuration
-              .gsub("\n", " ")
-              .gsub('"', '')
-          expect(process('/opt/thanos/bin/thanos').args)
-              .to(match(
-                  /--selector\.relabel-config #{Regexp.escape(config_option)}/))
-        end
+        execute_docker_entrypoint(
+          started_indicator: 'listening'
+        )
       end
 
-      context 'when passed an object path' do
-        before(:all) do
-          selector_relabel_config_file_object_path = "#{s3_bucket_path}/selector-relabelling.yml"
+      after(:all, &:reset_docker_backend)
 
-          create_object(
-              endpoint_url: s3_endpoint_url,
-              region: s3_bucket_region,
-              bucket_path: s3_bucket_path,
-              object_path: selector_relabel_config_file_object_path,
-              content: selector_relabel_configuration)
-          create_env_file(
-              endpoint_url: s3_endpoint_url,
-              region: s3_bucket_region,
-              bucket_path: s3_bucket_path,
-              object_path: s3_env_file_object_path,
-              env: {
-                  'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_OBJECT_PATH' =>
-                      selector_relabel_config_file_object_path,
-                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                      object_store_configuration
-              })
+      it 'uses the provided selector relabel config' do
+        config_option = selector_relabel_configuration
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
+        expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+                /--selector\.relabel-config #{Regexp.escape(config_option)}/
+              ))
+      end
+    end
 
-          execute_docker_entrypoint(
-              started_indicator: "listening")
-        end
+    context 'when relabelling passed as an object path' do
+      before(:all) do
+        selector_relabel_config_file_object_path =
+          "#{s3_bucket_path}/selector-relabelling.yml"
 
-        after(:all, &:reset_docker_backend)
+        create_object(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: selector_relabel_config_file_object_path,
+          content: selector_relabel_configuration
+        )
+        create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_OBJECT_PATH' =>
+                  selector_relabel_config_file_object_path,
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
 
-        it 'fetches the specific selector relabel config file and passes its path' do
-          config_file_listing = command('ls /opt/thanos/conf').stdout
-
-          expect(config_file_listing).to(eq("selector-relabelling.yml\n"))
-
-          config_file_path = '/opt/thanos/conf/selector-relabelling.yml'
-          config_file_contents = command("cat #{config_file_path}").stdout
-
-          expect(config_file_contents).to(eq(selector_relabel_configuration))
-          expect(process('/opt/thanos/bin/thanos').args)
-              .to(match(
-                  /--selector\.relabel-config-file=#{Regexp.escape(config_file_path)}/))
-        end
+        execute_docker_entrypoint(
+          started_indicator: 'listening'
+        )
       end
 
-      context 'when passed a filesystem path' do
-        before(:all) do
-          create_env_file(
-              endpoint_url: s3_endpoint_url,
-              region: s3_bucket_region,
-              bucket_path: s3_bucket_path,
-              object_path: s3_env_file_object_path,
-              env: {
-                  'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_PATH' =>
-                      '/selector-relabel-config.yml',
-                  'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                      object_store_configuration
-              })
+      after(:all, &:reset_docker_backend)
 
-          execute_command(
-              "echo \"#{selector_relabel_configuration}\" > /selector-relabel-config.yml")
-          execute_command(
-              "chown thanos:thanos /selector-relabel-config.yml")
+      it 'fetches the specified selector relabel config file' do
+        config_file_listing = command('ls /opt/thanos/conf').stdout
 
-          execute_docker_entrypoint(
-              started_indicator: "listening")
-        end
+        expect(config_file_listing).to(eq("selector-relabelling.yml\n"))
+      end
 
-        after(:all, &:reset_docker_backend)
+      it 'fetches the correct selector relabel config file contents' do
+        config_file_path = '/opt/thanos/conf/selector-relabelling.yml'
+        config_file_contents = command("cat #{config_file_path}").stdout
 
-        it 'uses the provided file path as the selector relabel config path' do
-          expect(process('/opt/thanos/bin/thanos').args)
-              .to(match(
-                  /--selector\.relabel-config-file=\/selector-relabel-config.yml/))
-        end
+        expect(config_file_contents).to(eq(selector_relabel_configuration))
+      end
+
+      it 'passes the specified selector relabel config file path' do
+        config_file_path =
+          Regexp.escape('/opt/thanos/conf/selector-relabelling.yml')
+
+        expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+                /--selector\.relabel-config-file=#{config_file_path}/
+              ))
+      end
+    end
+
+    context 'when relabelling passed as a filesystem path' do
+      before(:all) do
+        create_env_file(
+          endpoint_url: s3_endpoint_url,
+          region: s3_bucket_region,
+          bucket_path: s3_bucket_path,
+          object_path: s3_env_file_object_path,
+          env: {
+            'THANOS_SELECTOR_RELABEL_CONFIGURATION_FILE_PATH' =>
+                  '/selector-relabel-config.yml',
+            'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                  object_store_configuration
+          }
+        )
+
+        execute_command(
+          "echo \"#{selector_relabel_configuration}\" > " \
+          '/selector-relabel-config.yml'
+        )
+        execute_command(
+          'chown thanos:thanos /selector-relabel-config.yml'
+        )
+
+        execute_docker_entrypoint(
+          started_indicator: 'listening'
+        )
+      end
+
+      after(:all, &:reset_docker_backend)
+
+      it 'uses the provided file path as the selector relabel config path' do
+        expect(process('/opt/thanos/bin/thanos').args)
+          .to(match(
+                %r{--selector\.relabel-config-file=/selector-relabel-config.yml}
+              ))
       end
     end
   end
@@ -601,33 +693,37 @@ describe 'thanos-compact-aws entrypoint' do
   describe 'with web configuration' do
     before(:all) do
       create_env_file(
-          endpoint_url: s3_endpoint_url,
-          region: s3_bucket_region,
-          bucket_path: s3_bucket_path,
-          object_path: s3_env_file_object_path,
-          env: {
-              'THANOS_WEB_EXTERNAL_PREFIX' => '/query',
-              'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix',
-              'THANOS_OBJECT_STORE_CONFIGURATION' =>
-                  object_store_configuration
-          })
+        endpoint_url: s3_endpoint_url,
+        region: s3_bucket_region,
+        bucket_path: s3_bucket_path,
+        object_path: s3_env_file_object_path,
+        env: {
+          'THANOS_WEB_EXTERNAL_PREFIX' => '/query',
+          'THANOS_WEB_PREFIX_HEADER' => 'X-Forwarded-Prefix',
+          'THANOS_OBJECT_STORE_CONFIGURATION' =>
+                object_store_configuration
+        }
+      )
 
       execute_docker_entrypoint(
-          started_indicator: "listening")
+        started_indicator: 'listening'
+      )
     end
 
     after(:all, &:reset_docker_backend)
 
     it 'uses the provided web external prefix' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(
-              /--web\.external-prefix=\/query/))
+        .to(match(
+              %r{--web\.external-prefix=/query}
+            ))
     end
 
     it 'uses the provided web prefix header' do
       expect(process('/opt/thanos/bin/thanos').args)
-          .to(match(
-              /--web\.prefix-header=X-Forwarded-Prefix/))
+        .to(match(
+              /--web\.prefix-header=X-Forwarded-Prefix/
+            ))
     end
   end
 
@@ -637,58 +733,70 @@ describe 'thanos-compact-aws entrypoint' do
   end
 
   def create_env_file(opts)
-    create_object(opts
-        .merge(content: (opts[:env] || {})
-            .to_a
-            .collect { |item| " #{item[0]}=\"#{item[1]}\"" }
-            .join("\n")))
+    create_object(
+      opts
+        .merge(
+          content: (opts[:env] || {})
+                     .to_a
+                     .collect { |item| " #{item[0]}=\"#{item[1]}\"" }
+                     .join("\n")
+        )
+    )
   end
 
   def execute_command(command_string)
     command = command(command_string)
     exit_status = command.exit_status
     unless exit_status == 0
-      raise RuntimeError,
-          "\"#{command_string}\" failed with exit code: #{exit_status}"
+      raise "\"#{command_string}\" failed with exit code: #{exit_status}"
     end
+
     command
   end
 
+  def make_bucket(opts)
+    execute_command('aws ' \
+                    "--endpoint-url #{opts[:endpoint_url]} " \
+                    's3 ' \
+                    'mb ' \
+                    "#{opts[:bucket_path]} " \
+                    "--region \"#{opts[:region]}\"")
+  end
+
+  def copy_object(opts)
+    execute_command("echo -n #{Shellwords.escape(opts[:content])} | " \
+                    'aws ' \
+                    "--endpoint-url #{opts[:endpoint_url]} " \
+                    's3 ' \
+                    'cp ' \
+                    '- ' \
+                    "#{opts[:object_path]} " \
+                    "--region \"#{opts[:region]}\" " \
+                    '--sse AES256')
+  end
+
   def create_object(opts)
-    execute_command('aws ' +
-        "--endpoint-url #{opts[:endpoint_url]} " +
-        's3 ' +
-        'mb ' +
-        "#{opts[:bucket_path]} " +
-        "--region \"#{opts[:region]}\"")
-    execute_command("echo -n #{Shellwords.escape(opts[:content])} | " +
-        'aws ' +
-        "--endpoint-url #{opts[:endpoint_url]} " +
-        's3 ' +
-        'cp ' +
-        '- ' +
-        "#{opts[:object_path]} " +
-        "--region \"#{opts[:region]}\" " +
-        '--sse AES256')
+    make_bucket(opts)
+    copy_object(opts)
+  end
+
+  def wait_for_contents(file, content)
+    Octopoller.poll(timeout: 30) do
+      docker_entrypoint_log = command("cat #{file}").stdout
+      docker_entrypoint_log =~ /#{content}/ ? docker_entrypoint_log : :re_poll
+    end
+  rescue Octopoller::TimeoutError => e
+    puts command("cat #{file}").stdout
+    raise e
   end
 
   def execute_docker_entrypoint(opts)
-    logfile_path = '/tmp/docker-entrypoint.log'
     args = (opts[:arguments] || []).join(' ')
+    logfile_path = '/tmp/docker-entrypoint.log'
+    start_command = "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &"
+    started_indicator = opts[:started_indicator]
 
-    execute_command(
-        "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &")
-
-    begin
-      Octopoller.poll(timeout: 15) do
-        docker_entrypoint_log = command("cat #{logfile_path}").stdout
-        docker_entrypoint_log =~ /#{opts[:started_indicator]}/ ?
-            docker_entrypoint_log :
-            :re_poll
-      end
-    rescue Octopoller::TimeoutError => e
-      puts command("cat #{logfile_path}").stdout
-      raise e
-    end
+    execute_command(start_command)
+    wait_for_contents(logfile_path, started_indicator)
   end
 end
