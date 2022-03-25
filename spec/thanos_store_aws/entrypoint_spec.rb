@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-describe 'thanos-store-aws entrypoint' do
+describe 'thanos-store-aws entrypoint', focus: true do
   def metadata_service_url
     'http://metadata:1338'
   end
@@ -178,8 +178,8 @@ describe 'thanos-store-aws entrypoint' do
 
     it 'uses the provided object store configuration' do
       config_option = object_store_configuration
-                      .gsub("\n", ' ')
-                      .gsub('"', '')
+                        .gsub("\n", ' ')
+                        .gsub('"', '')
       expect(process('/opt/thanos/bin/thanos').args)
         .to(match(/--objstore\.config #{config_option}/))
     end
@@ -592,8 +592,8 @@ describe 'thanos-store-aws entrypoint' do
 
       it 'uses the provided index cache config' do
         config_option = index_cache_configuration
-                        .gsub("\n", ' ')
-                        .gsub('"', '')
+                          .gsub("\n", ' ')
+                          .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
                 /--index-cache\.config #{config_option}/
@@ -753,8 +753,8 @@ describe 'thanos-store-aws entrypoint' do
 
       it 'passes the provided object store config' do
         config_option = object_store_configuration
-                        .gsub("\n", ' ')
-                        .gsub('"', '')
+                          .gsub("\n", ' ')
+                          .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(/--objstore\.config #{config_option}/))
       end
@@ -874,8 +874,8 @@ describe 'thanos-store-aws entrypoint' do
 
       it 'uses the provided selector relabel config' do
         config_option = selector_relabel_configuration
-                        .gsub("\n", ' ')
-                        .gsub('"', '')
+                          .gsub("\n", ' ')
+                          .gsub('"', '')
         expect(process('/opt/thanos/bin/thanos').args)
           .to(match(
                 /--selector\.relabel-config #{Regexp.escape(config_option)}/
@@ -1010,77 +1010,77 @@ describe 'thanos-store-aws entrypoint' do
         .to(match(/--web\.prefix-header=X-Forwarded-Prefix/))
     end
   end
-end
 
-def reset_docker_backend
-  Specinfra::Backend::Docker.instance.send :cleanup_container
-  Specinfra::Backend::Docker.clear
-end
-
-def create_env_file(opts)
-  create_object(
-    opts
-      .merge(
-        content: (opts[:env] || {})
-                   .to_a
-                   .collect { |item| " #{item[0]}=\"#{item[1]}\"" }
-                   .join("\n")
-      )
-  )
-end
-
-def execute_command(command_string)
-  command = command(command_string)
-  exit_status = command.exit_status
-  unless exit_status == 0
-    raise "\"#{command_string}\" failed with exit code: #{exit_status}"
+  def reset_docker_backend
+    Specinfra::Backend::Docker.instance.send :cleanup_container
+    Specinfra::Backend::Docker.clear
   end
 
-  command
-end
-
-def make_bucket(opts)
-  execute_command('aws ' \
-                  "--endpoint-url #{opts[:endpoint_url]} " \
-                  's3 ' \
-                  'mb ' \
-                  "#{opts[:bucket_path]} " \
-                  "--region \"#{opts[:region]}\"")
-end
-
-def copy_object(opts)
-  execute_command("echo -n #{Shellwords.escape(opts[:content])} | " \
-                  'aws ' \
-                  "--endpoint-url #{opts[:endpoint_url]} " \
-                  's3 ' \
-                  'cp ' \
-                  '- ' \
-                  "#{opts[:object_path]} " \
-                  "--region \"#{opts[:region]}\" " \
-                  '--sse AES256')
-end
-
-def create_object(opts)
-  make_bucket(opts)
-  copy_object(opts)
-end
-
-def wait_for_contents(file, content)
-  Octopoller.poll(timeout: 30) do
-    docker_entrypoint_log = command("cat #{file}").stdout
-    docker_entrypoint_log =~ /#{content}/ ? docker_entrypoint_log : :re_poll
+  def create_env_file(opts)
+    create_object(
+      opts
+        .merge(
+          content: (opts[:env] || {})
+                     .to_a
+                     .collect { |item| " #{item[0]}=\"#{item[1]}\"" }
+                     .join("\n")
+        )
+    )
   end
-rescue Octopoller::TimeoutError => e
-  puts command("cat #{file}").stdout
-  raise e
-end
 
-def execute_docker_entrypoint(opts)
-  args = (opts[:arguments] || []).join(' ')
-  logfile_path = '/tmp/docker-entrypoint.log'
-  start_command = "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &"
-  started_indicator = opts[:started_indicator]
+  def execute_command(command_string)
+    command = command(command_string)
+    exit_status = command.exit_status
+    unless exit_status == 0
+      raise "\"#{command_string}\" failed with exit code: #{exit_status}"
+    end
 
-  execute_command(start_command)
-  wait_for_contents(logfile_path, started_indicator)
+    command
+  end
+
+  def make_bucket(opts)
+    execute_command('aws ' \
+                    "--endpoint-url #{opts[:endpoint_url]} " \
+                    's3 ' \
+                    'mb ' \
+                    "#{opts[:bucket_path]} " \
+                    "--region \"#{opts[:region]}\"")
+  end
+
+  def copy_object(opts)
+    execute_command("echo -n #{Shellwords.escape(opts[:content])} | " \
+                    'aws ' \
+                    "--endpoint-url #{opts[:endpoint_url]} " \
+                    's3 ' \
+                    'cp ' \
+                    '- ' \
+                    "#{opts[:object_path]} " \
+                    "--region \"#{opts[:region]}\" " \
+                    '--sse AES256')
+  end
+
+  def create_object(opts)
+    make_bucket(opts)
+    copy_object(opts)
+  end
+
+  def wait_for_contents(file, content)
+    Octopoller.poll(timeout: 30) do
+      docker_entrypoint_log = command("cat #{file}").stdout
+      docker_entrypoint_log =~ /#{content}/ ? docker_entrypoint_log : :re_poll
+    end
+  rescue Octopoller::TimeoutError => e
+    puts command("cat #{file}").stdout
+    raise e
+  end
+
+  def execute_docker_entrypoint(opts)
+    args = (opts[:arguments] || []).join(' ')
+    logfile_path = '/tmp/docker-entrypoint.log'
+    start_command = "docker-entrypoint.sh #{args} > #{logfile_path} 2>&1 &"
+    started_indicator = opts[:started_indicator]
+
+    execute_command(start_command)
+    wait_for_contents(logfile_path, started_indicator)
+  end
 end
