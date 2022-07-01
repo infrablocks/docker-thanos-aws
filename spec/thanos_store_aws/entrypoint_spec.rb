@@ -955,7 +955,7 @@ describe 'thanos-store-aws entrypoint' do
         )
 
         execute_command(
-          "echo \"#{selector_relabel_configuration}\" > "\
+          "echo \"#{selector_relabel_configuration}\" > " \
           '/selector-relabel-config.yml'
         )
         execute_command(
