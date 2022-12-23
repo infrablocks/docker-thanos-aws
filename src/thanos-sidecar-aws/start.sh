@@ -57,10 +57,6 @@ fi
 prometheus_url="${THANOS_PROMETHEUS_URL:-http://localhost:9090}"
 prometheus_ready_timeout="${THANOS_PROMETHEUS_READY_TIMEOUT:-10m}"
 
-rcv_conn_pool_size="${THANOS_RECEIVE_CONNECTION_POOL_SIZE:-0}"
-rcv_conn_pool_size_per_host=\
-"${THANOS_RECEIVE_CONNECTION_POOL_SIZE_PER_HOST:-100}"
-
 tsdb_path="${THANOS_TSDB_PATH:-/var/opt/prometheus}"
 
 reloader_config_file="${THANOS_RELOADER_CONFIGURATION_FILE}"
@@ -119,9 +115,6 @@ exec /opt/thanos/bin/start.sh sidecar \
     \
     --prometheus.url="${prometheus_url}" \
     --prometheus.ready_timeout="${prometheus_ready_timeout}" \
-    \
-    --receive.connection-pool-size="${rcv_conn_pool_size}" \
-    --receive.connection-pool-size-per-host="${rcv_conn_pool_size_per_host}" \
     \
     --tsdb.path="${tsdb_path}" \
     \

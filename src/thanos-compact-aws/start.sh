@@ -17,10 +17,6 @@ http_grace_period="${THANOS_HTTP_GRACE_PERIOD:-2m}"
 
 data_dir="${THANOS_DATA_DIRECTORY:-/var/opt/thanos}"
 
-block_sync_concurrency_option=
-if [ -n "${THANOS_BLOCK_SYNC_CONCURRENCY}" ]; then
-  block_sync_concurrency_option="--block-sync-concurrency=${THANOS_BLOCK_SYNC_CONCURRENCY}"
-fi
 consistency_delay_option=
 if [ -n "${THANOS_CONSISTENCY_DELAY}" ]; then
   consistency_delay_option="--consistency-delay=${THANOS_CONSISTENCY_DELAY}"
@@ -127,7 +123,6 @@ exec /opt/thanos/bin/start.sh compact \
     --http-grace-period="${http_grace_period}" \
     \
     --data-dir="${data_dir}" \
-    ${block_sync_concurrency_option} \
     ${consistency_delay_option} \
     ${delete_delay_option} \
     ${bucket_web_label_option} \

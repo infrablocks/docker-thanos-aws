@@ -123,16 +123,6 @@ describe 'thanos-sidecar-aws entrypoint' do
         .to(match(/--prometheus.ready_timeout=10m/))
     end
 
-    it 'uses a receive connection pool size of zero' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .to(match(/--receive.connection-pool-size=0/))
-    end
-
-    it 'uses a receive connection pool size per host of 100' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .to(match(/--receive.connection-pool-size-per-host=100/))
-    end
-
     it 'uses a TSDB path of /var/opt/prometheus' do
       expect(process('/opt/thanos/bin/thanos').args)
         .to(match(%r{--tsdb.path=/var/opt/prometheus}))
@@ -440,37 +430,6 @@ describe 'thanos-sidecar-aws entrypoint' do
     it 'uses the provided prometheus ready timeout' do
       expect(process('/opt/thanos/bin/thanos').args)
         .to(match(/--prometheus.ready_timeout=5m/))
-    end
-  end
-
-  describe 'with receive configuration' do
-    before(:all) do
-      create_env_file(
-        endpoint_url: s3_endpoint_url,
-        region: s3_bucket_region,
-        bucket_path: s3_bucket_path,
-        object_path: s3_env_file_object_path,
-        env: {
-          'THANOS_RECEIVE_CONNECTION_POOL_SIZE' => '200',
-          'THANOS_RECEIVE_CONNECTION_POOL_SIZE_PER_HOST' => '50'
-        }
-      )
-
-      execute_docker_entrypoint(
-        started_indicator: 'listening'
-      )
-    end
-
-    after(:all, &:reset_docker_backend)
-
-    it 'uses the provided receive connection pool size' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .to(match(/--receive.connection-pool-size=200/))
-    end
-
-    it 'uses the provided receive connection pool size per host' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .to(match(/--receive.connection-pool-size-per-host=50/))
     end
   end
 
@@ -810,6 +769,8 @@ describe 'thanos-sidecar-aws entrypoint' do
   def reset_docker_backend
     Specinfra::Backend::Docker.instance.send :cleanup_container
     Specinfra::Backend::Docker.clear
+  rescue Docker::Error::NotFoundError => e
+    puts e.message
   end
 
   def create_env_file(opts)

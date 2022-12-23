@@ -106,11 +106,6 @@ describe 'thanos-compact-aws entrypoint' do
         .to(match(%r{--data-dir=/var/opt/thanos}))
     end
 
-    it 'does not include block sync concurrency option' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .not_to(match(/--block-sync-concurrency/))
-    end
-
     it 'does not include consistency delay option' do
       expect(process('/opt/thanos/bin/thanos').args)
         .not_to(match(/--consistency-delay/))
@@ -317,7 +312,6 @@ describe 'thanos-compact-aws entrypoint' do
         bucket_path: s3_bucket_path,
         object_path: s3_env_file_object_path,
         env: {
-          'THANOS_BLOCK_SYNC_CONCURRENCY' => '30',
           'THANOS_CONSISTENCY_DELAY' => '30m',
           'THANOS_DELETE_DELAY' => '36h',
           'THANOS_BUCKET_WEB_LABEL' => 'title',
@@ -332,11 +326,6 @@ describe 'thanos-compact-aws entrypoint' do
     end
 
     after(:all, &:reset_docker_backend)
-
-    it 'uses the provided block sync concurrency' do
-      expect(process('/opt/thanos/bin/thanos').args)
-        .to(match(/--block-sync-concurrency=30/))
-    end
 
     it 'uses the provided consistency delay' do
       expect(process('/opt/thanos/bin/thanos').args)
