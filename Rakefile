@@ -129,9 +129,9 @@ namespace :images do
     ) do |t|
       t.work_directory = 'build/images'
 
-      t.copy_spec = [
-        'src/thanos-aws/Dockerfile',
-        'src/thanos-aws/start.sh'
+      t.copy_spec = %w[
+        src/thanos-aws/Dockerfile
+        src/thanos-aws/start.sh
       ]
 
       t.repository_name = 'thanos-aws'
@@ -156,9 +156,9 @@ namespace :images do
 
       t.work_directory = 'build/images'
 
-      t.copy_spec = [
-        'src/thanos-sidecar-aws/Dockerfile',
-        'src/thanos-sidecar-aws/start.sh'
+      t.copy_spec = %w[
+        src/thanos-sidecar-aws/Dockerfile
+        src/thanos-sidecar-aws/start.sh
       ]
 
       t.repository_name = 'thanos-sidecar-aws'
@@ -187,9 +187,9 @@ namespace :images do
 
       t.work_directory = 'build/images'
 
-      t.copy_spec = [
-        'src/thanos-query-aws/Dockerfile',
-        'src/thanos-query-aws/start.sh'
+      t.copy_spec = %w[
+        src/thanos-query-aws/Dockerfile
+        src/thanos-query-aws/start.sh
       ]
 
       t.repository_name = 'thanos-query-aws'
@@ -218,9 +218,9 @@ namespace :images do
 
       t.work_directory = 'build/images'
 
-      t.copy_spec = [
-        'src/thanos-store-aws/Dockerfile',
-        'src/thanos-store-aws/start.sh'
+      t.copy_spec = %w[
+        src/thanos-store-aws/Dockerfile
+        src/thanos-store-aws/start.sh
       ]
 
       t.repository_name = 'thanos-store-aws'
@@ -249,9 +249,9 @@ namespace :images do
 
       t.work_directory = 'build/images'
 
-      t.copy_spec = [
-        'src/thanos-compact-aws/Dockerfile',
-        'src/thanos-compact-aws/start.sh'
+      t.copy_spec = %w[
+        src/thanos-compact-aws/Dockerfile
+        src/thanos-compact-aws/start.sh
       ]
 
       t.repository_name = 'thanos-compact-aws'
@@ -273,12 +273,12 @@ namespace :images do
 
   desc 'Build all images'
   task :build do
-    [
-      'images:base',
-      'images:sidecar',
-      'images:query',
-      'images:store',
-      'images:compact'
+    %w[
+      images:base
+      images:sidecar
+      images:query
+      images:store
+      images:compact
     ].each do |t|
       Rake::Task["#{t}:build"].invoke('latest')
       Rake::Task["#{t}:tag"].invoke('latest')
@@ -334,7 +334,7 @@ namespace :test do
     task check: [:rubocop]
 
     desc 'Attempt to automatically fix issues with the test code'
-    task fix: [:'rubocop:auto_correct']
+    task fix: [:'rubocop:autocorrect_all']
   end
 
   RSpec::Core::RakeTask.new(

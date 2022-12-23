@@ -18,7 +18,7 @@ describe 'commands' do
 
   it 'includes the thanos command' do
     expect(command('/opt/thanos/bin/thanos --version').stderr)
-      .to(match(/0.15.0/))
+      .to(match(/0.29.0/))
   end
 
   def reset_docker_backend

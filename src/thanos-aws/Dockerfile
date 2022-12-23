@@ -1,6 +1,6 @@
-FROM infrablocks/alpine-aws-s3-config:0.23.0-rc.7
+FROM infrablocks/alpine-aws-s3-config:0.23.0
 
-ENV THANOS_VERSION 0.15.0
+ENV THANOS_VERSION 0.29.0
 
 RUN apk \
     --verbose \
